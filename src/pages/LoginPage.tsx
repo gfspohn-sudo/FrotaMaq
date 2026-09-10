@@ -1,0 +1,389 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Truck } from 'lucide-react'
+import { supabase, formatDetailedError } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/Button'
+import { Input, Select } from '@/components/ui/Input'
+import { SupabaseConfigAlert } from '@/components/SupabaseConfigAlert'
+import { TEST_USERS, TEST_USER_PASSWORD, PERFIL_OPTIONS } from '@/lib/testUsers'
+import { getEmpresas, EmpresaDomainService } from '@/services/empresas'
+import type { PerfilUsuario, Empresa } from '@/types/database'
+import type { TestUser } from '@/lib/testUsers'
+
+type AuthMode = 'login' | 'signup'
+
+const BACKGROUND_IMAGE =
+  'https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=1920&q=80'
+
+export function LoginPage() {
+  const { signUp, signInWithGoogle, connectionError } = useAuth()
+  const navigate = useNavigate()
+  const [mode, setMode] = useState<AuthMode>('login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [nome, setNome] = useState('')
+  const [perfil, setPerfil] = useState<PerfilUsuario>('motorista')
+  const [empresaId, setEmpresaId] = useState('')
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [loadingEmpresas, setLoadingEmpresas] = useState(false)
+  const [remember, setRemember] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [quickLoading, setQuickLoading] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data, error: sessionError }) => {
+      if (sessionError) {
+        console.error('Erro no Supabase (teste login page):', sessionError)
+      } else {
+        console.log('[Login] Sessão atual:', data.session ? 'ativa' : 'nenhuma')
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (mode !== 'signup') return
+
+    setLoadingEmpresas(true)
+    getEmpresas()
+      .then(({ data, error }) => {
+        if (data) setEmpresas(data)
+        if (error) console.error('[Login] Falha ao carregar empresas:', error.message)
+      })
+      .finally(() => setLoadingEmpresas(false))
+  }, [mode])
+
+  const requiresEmpresa = EmpresaDomainService.perfilRequerEmpresa(perfil)
+  const empresaOptions = [
+    { value: '', label: loadingEmpresas ? 'Carregando empresas...' : 'Selecione a empresa' },
+    ...empresas.map(e => ({ value: e.id, label: e.nome })),
+  ]
+
+  function resetMessages() {
+    setError('')
+    setSuccess('')
+  }
+
+  function switchMode(next: AuthMode) {
+    resetMessages()
+    setMode(next)
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault()
+    resetMessages()
+    setLoading(true)
+
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+
+      if (signInError) {
+        console.error('Erro no Supabase:', signInError)
+        setError(formatDetailedError(signInError))
+        setLoading(false)
+        return
+      }
+
+      console.log('[Supabase] Login OK:', { userId: data.user?.id, email: data.user?.email })
+      navigate('/')
+    } catch (err) {
+      console.error('Erro no Supabase:', err)
+      setError(err instanceof Error ? err.message : 'Erro de conexão inesperado')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault()
+    resetMessages()
+
+    const empresaError = EmpresaDomainService.validarVinculoEmpresa(
+      perfil,
+      empresaId || null,
+    )
+    if (empresaError) {
+      setError(empresaError)
+      return
+    }
+
+    setLoading(true)
+
+    const { error: signUpError, needsConfirmation } = await signUp({
+      email,
+      password,
+      nome,
+      perfil,
+      empresa_id: empresaId || null,
+    })
+    setLoading(false)
+
+    if (signUpError) {
+      setError(signUpError)
+      return
+    }
+
+    if (needsConfirmation) {
+      setSuccess('Conta criada! Verifique seu e-mail para confirmar o cadastro antes de entrar.')
+      switchMode('login')
+      return
+    }
+
+    navigate('/')
+  }
+
+  async function handleGoogleLogin() {
+    resetMessages()
+    const { error: googleError } = await signInWithGoogle()
+    if (googleError) setError(googleError)
+  }
+
+  async function handleQuickLogin(user: TestUser) {
+    resetMessages()
+    setQuickLoading(user.email)
+    setEmail(user.email)
+    setPassword(TEST_USER_PASSWORD)
+
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: TEST_USER_PASSWORD,
+      })
+
+      if (signInError) {
+        console.error('Erro no Supabase:', signInError)
+        setError(formatDetailedError(signInError))
+        setQuickLoading(null)
+        return
+      }
+
+      console.log('[Supabase] Login demo OK:', data.user?.email)
+      navigate('/')
+    } catch (err) {
+      console.error('Erro no Supabase:', err)
+      setError(err instanceof Error ? err.message : 'Erro de conexão')
+    } finally {
+      setQuickLoading(null)
+    }
+  }
+
+  const quickButtonStyles: Record<PerfilUsuario, string> = {
+    super_admin: 'border-purple-400/30 bg-purple-500/5 text-purple-700 hover:bg-purple-500/10',
+    gestor: 'border-action/30 bg-action/5 text-action hover:bg-action/10',
+    gerente: 'border-action/30 bg-action/5 text-action hover:bg-action/10',
+    mecanico: 'border-warning/30 bg-warning/5 text-warning hover:bg-warning/10',
+    motorista: 'border-success/30 bg-success/5 text-success hover:bg-success/10',
+  }
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center px-4 py-8">
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${BACKGROUND_IMAGE})` }}
+      />
+      <div className="absolute inset-0 bg-action/75 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-navy-900/40 via-action/60 to-navy-900/80" />
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="mb-6 flex flex-col items-center text-white">
+          <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
+            <Truck className="h-8 w-8" />
+          </div>
+          <h1 className="text-2xl font-bold">FrotaMaq</h1>
+          <p className="mt-1 text-sm text-white/80">Gestão de Frotas</p>
+        </div>
+
+        <div className="rounded-2xl bg-white/95 p-6 shadow-2xl backdrop-blur-md sm:p-8">
+          <div className="mb-6 text-center">
+            <h2 className="text-lg font-semibold text-gray-900">
+              {mode === 'login' ? 'Entrar na sua conta' : 'Criar nova conta'}
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {mode === 'login'
+                ? 'Acesse o painel de gestão da frota'
+                : 'Preencha os dados para se cadastrar'}
+            </p>
+          </div>
+
+          <SupabaseConfigAlert connectionError={connectionError} />
+
+          {mode === 'login' ? (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <Input
+                label="E-mail"
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+              <Input
+                label="Senha"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={e => setRemember(e.target.checked)}
+                    className="rounded border-gray-300 text-action focus:ring-action"
+                  />
+                  Lembrar-me
+                </label>
+                <button type="button" className="text-sm text-action hover:underline">
+                  Esqueci a senha?
+                </button>
+              </div>
+
+              {error && (
+                <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+                  <p className="font-medium">Falha no login</p>
+                  <p className="mt-1 text-xs leading-relaxed">{error}</p>
+                </div>
+              )}
+              {success && (
+                <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">{success}</p>
+              )}
+
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading ? 'Entrando...' : 'Entrar'}
+              </Button>
+
+              <p className="text-center text-sm text-gray-600">
+                Não tem uma conta?{' '}
+                <button
+                  type="button"
+                  onClick={() => switchMode('signup')}
+                  className="font-medium text-action hover:underline"
+                >
+                  Cadastre-se
+                </button>
+              </p>
+
+              <div className="relative my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-white px-2 text-gray-500">ou</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                size="lg"
+                onClick={handleGoogleLogin}
+              >
+                Entrar com Google
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleSignup} className="space-y-4">
+              <Input
+                label="Nome"
+                type="text"
+                placeholder="Seu nome completo"
+                value={nome}
+                onChange={e => setNome(e.target.value)}
+                required
+              />
+              <Input
+                label="E-mail"
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+              <Input
+                label="Senha"
+                type="password"
+                placeholder="Mínimo 6 caracteres"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                minLength={6}
+                required
+              />
+              <Select
+                label="Perfil inicial"
+                value={perfil}
+                onChange={e => setPerfil(e.target.value as PerfilUsuario)}
+                options={PERFIL_OPTIONS}
+              />
+              {requiresEmpresa && (
+                <Select
+                  label="Empresa"
+                  value={empresaId}
+                  onChange={e => setEmpresaId(e.target.value)}
+                  options={empresaOptions}
+                  required
+                  disabled={loadingEmpresas || empresas.length === 0}
+                />
+              )}
+              {requiresEmpresa && !loadingEmpresas && empresas.length === 0 && (
+                <p className="text-xs text-warning">
+                  Nenhuma empresa disponível. Peça ao administrador para cadastrar uma empresa.
+                </p>
+              )}
+
+              {error && (
+                <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+                  <p className="font-medium">Falha no cadastro</p>
+                  <p className="mt-1 text-xs">{error}</p>
+                </div>
+              )}
+
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading ? 'Cadastrando...' : 'Criar conta'}
+              </Button>
+
+              <p className="text-center text-sm text-gray-600">
+                Já tem uma conta?{' '}
+                <button
+                  type="button"
+                  onClick={() => switchMode('login')}
+                  className="font-medium text-action hover:underline"
+                >
+                  Entrar
+                </button>
+              </p>
+            </form>
+          )}
+
+          <section className="mt-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
+            <h3 className="text-sm font-semibold text-gray-800">Acesso Rápido para Testes</h3>
+            <p className="mt-1 text-xs text-gray-500">
+              Senha padrão: <strong>123456</strong>. Rode <code className="text-xs">seed_multi_tenant_demo.sql</code> no Supabase após criar os usuários no Auth.
+            </p>
+            <div className="mt-3 space-y-2">
+              {TEST_USERS.map(user => (
+                <button
+                  key={user.email}
+                  type="button"
+                  disabled={quickLoading !== null}
+                  onClick={() => handleQuickLogin(user)}
+                  className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors disabled:opacity-50 ${quickButtonStyles[user.perfil]}`}
+                >
+                  <span>{user.label}</span>
+                  <span className="text-xs opacity-70">
+                    {quickLoading === user.email ? 'Entrando...' : user.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  )
+}

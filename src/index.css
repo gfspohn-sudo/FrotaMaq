@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-900: #0f172a;
+  --color-navy-800: #1e293b;
+  --color-action: #2563eb;
+  --color-success: #22c55e;
+  --color-warning: #f97316;
+  --color-danger: #ef4444;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply m-0 bg-gray-50 font-sans text-gray-900 antialiased;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
