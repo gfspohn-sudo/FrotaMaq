@@ -6,7 +6,7 @@ import type { Veiculo as VeiculoDTO } from '@/types/database'
 
 export class SupabaseVeiculoRepository implements IVeiculoRepository {
   async findAll(filter?: VeiculoListFilter) {
-    let query = supabase.from('veiculos').select('*').order('created_at', { ascending: false })
+    let query = supabase.from('veiculos').select('*, empresas(nome)').order('created_at', { ascending: false })
 
     if (filter?.empresaId) query = query.eq('empresa_id', filter.empresaId)
     if (filter?.status) query = query.eq('status', filter.status)
@@ -21,7 +21,7 @@ export class SupabaseVeiculoRepository implements IVeiculoRepository {
   }
 
   async findById(id: string) {
-    const { data, error } = await supabase.from('veiculos').select('*').eq('id', id).single()
+    const { data, error } = await supabase.from('veiculos').select('*, empresas(nome)').eq('id', id).single()
     return {
       data: data ? VeiculoMapper.toDomain(data as VeiculoDTO) : null,
       error,
@@ -29,7 +29,13 @@ export class SupabaseVeiculoRepository implements IVeiculoRepository {
   }
 
   async create(input: NovoVeiculo) {
-    const { data, error } = await supabase.from('veiculos').insert(input).select().single()
+    const payload = {
+      ...input,
+      ano: input.ano_modelo ?? input.ano,
+      ano_modelo: input.ano_modelo ?? input.ano,
+      ano_carroceria: input.ano_carroceria ?? null,
+    }
+    const { data, error } = await supabase.from('veiculos').insert(payload).select('*, empresas(nome)').single()
     return {
       data: data ? VeiculoMapper.toDomain(data as VeiculoDTO) : null,
       error,
@@ -37,7 +43,9 @@ export class SupabaseVeiculoRepository implements IVeiculoRepository {
   }
 
   async update(id: string, input: Partial<NovoVeiculo>) {
-    const { data, error } = await supabase.from('veiculos').update(input).eq('id', id).select().single()
+    const payload = { ...input }
+    if (input.ano_modelo != null) payload.ano = input.ano_modelo
+    const { data, error } = await supabase.from('veiculos').update(payload).eq('id', id).select('*, empresas(nome)').single()
     return {
       data: data ? VeiculoMapper.toDomain(data as VeiculoDTO) : null,
       error,

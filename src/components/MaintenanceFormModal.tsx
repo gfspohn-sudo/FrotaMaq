@@ -137,7 +137,7 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
         />
 
         <Input
-          label="Valor (R$)"
+          label="Valor Total (R$)"
           type="number"
           step="0.01"
           min="0"

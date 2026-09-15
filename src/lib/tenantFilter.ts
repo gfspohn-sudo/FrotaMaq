@@ -11,7 +11,7 @@ export interface TenantQueryOptions {
 export const PERFIL_LABELS: Record<PerfilUsuario, string> = {
   super_admin: 'Super Admin',
   gestor: 'Gestor',
-  gerente: 'Gestor',
+  gerente: 'Diretor/Gestor',
   mecanico: 'Mecânico',
   motorista: 'Motorista',
 }

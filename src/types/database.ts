@@ -6,6 +6,9 @@ export type MetodoPagamento = 'cartao' | 'pix' | 'boleto' | 'faturado' | 'dinhei
 export type TipoAlerta = 'vencida' | 'proxima'
 export type StatusAlerta = 'ativo' | 'resolvido'
 export type MaintenanceUrgency = 'ok' | 'warning' | 'overdue'
+export type StatusReserva = 'PENDENTE' | 'APROVADO' | 'REJEITADO'
+export type StatusSolicitacaoRelatorio = 'PENDENTE' | 'APROVADO' | 'REJEITADO'
+export type PerfilChaveConvite = 'motorista' | 'mecanico'
 
 export interface Empresa {
   id: string
@@ -31,10 +34,37 @@ export interface Veiculo {
   modelo: string
   marca: string
   ano: number
+  ano_modelo?: number | null
+  ano_carroceria?: number | null
   km_atual: number
   status: StatusVeiculo
   foto_url: string | null
   created_at: string
+  empresas?: Pick<Empresa, 'nome'>
+}
+
+export interface Reserva {
+  id: string
+  empresa_id: string
+  veiculo_id: string
+  motorista_id: string
+  data_viagem: string
+  destino: string
+  km_ida_volta: number
+  status: StatusReserva
+  observacao_gestor: string | null
+  created_at: string
+  updated_at: string
+  veiculos?: Pick<Veiculo, 'placa' | 'modelo'>
+  usuarios?: Pick<Usuario, 'nome'>
+}
+
+export interface NovaReserva {
+  veiculo_id: string
+  empresa_id?: string
+  data_viagem: string
+  destino: string
+  km_ida_volta: number
 }
 
 export interface Manutencao {
@@ -90,9 +120,39 @@ export interface NovoVeiculo {
   modelo: string
   marca: string
   ano: number
+  ano_modelo?: number
+  ano_carroceria?: number | null
   km_atual: number
   status: StatusVeiculo
   foto_url?: string
+}
+
+export interface ChaveConvite {
+  id: string
+  empresa_id: string
+  token: string
+  perfil: PerfilChaveConvite
+  ativa: boolean
+  created_at: string
+}
+
+export interface SolicitacaoRelatorio {
+  id: string
+  empresa_id: string
+  veiculo_id: string
+  solicitante_id: string
+  status: StatusSolicitacaoRelatorio
+  observacao_gestor: string | null
+  created_at: string
+  updated_at: string
+  veiculos?: Pick<Veiculo, 'placa' | 'modelo'>
+  usuarios?: Pick<Usuario, 'nome'>
+}
+
+export const STATUS_RESERVA_LABELS: Record<StatusReserva, string> = {
+  PENDENTE: 'Pendente',
+  APROVADO: 'Aprovado',
+  REJEITADO: 'Rejeitado',
 }
 
 export const STATUS_VEICULO_LABELS: Record<StatusVeiculo, string> = {

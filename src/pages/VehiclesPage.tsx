@@ -12,10 +12,11 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { useTenant } from '@/contexts/TenantContext'
 import type { Veiculo, StatusVeiculo } from '@/types/database'
 import { STATUS_VEICULO_LABELS } from '@/types/database'
+import { formatVehicleDisplayName, formatVehicleSubtitle } from '@/lib/vehicleDisplay'
 
 export function VehiclesPage() {
-  const { canManageVehicles, canSeedTestData, canDeleteAllVehicles } = usePermissions()
-  const { filterEmpresaId, isViewingAll } = useTenant()
+  const { canManageVehicles, canSeedTestData, canDeleteAllVehicles, canRequestReserva } = usePermissions()
+  const { filterEmpresaId, isViewingAll, empresas: tenantEmpresas } = useTenant()
   const [veiculos, setVeiculos] = useState<Veiculo[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusVeiculo | ''>('')
@@ -195,8 +196,8 @@ export function VehiclesPage() {
         ) : (
           <div className="space-y-2">
             {veiculos.map(v => (
-              <Link key={v.id} to={`/veiculos/${v.id}`}>
-                <Card className="flex items-center gap-4">
+              <Card key={v.id} className="flex items-center gap-4">
+                <Link to={`/veiculos/${v.id}`} className="flex min-w-0 flex-1 items-center gap-4">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gray-100">
                     {v.foto_url ? (
                       <img src={v.foto_url} alt={v.modelo} className="h-full w-full rounded-lg object-cover" />
@@ -204,13 +205,30 @@ export function VehiclesPage() {
                       <Car className="h-6 w-6 text-gray-400" />
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900">{v.modelo} - {v.placa}</p>
-                    <p className="text-sm text-gray-500">{v.marca} · {v.ano}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900">
+                      {formatVehicleDisplayName(
+                        v.empresas?.nome ?? tenantEmpresas.find(e => e.id === v.empresa_id)?.nome ?? 'Frota',
+                        v.placa,
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {v.modelo} · {formatVehicleSubtitle(v.marca, v.ano_modelo ?? v.ano, v.ano_carroceria)}
+                    </p>
                   </div>
+                </Link>
+                <div className="flex shrink-0 flex-col items-end gap-2">
                   <StatusBadge status={v.status} />
-                </Card>
-              </Link>
+                  {canRequestReserva && (
+                    <Link
+                      to={`/reservas?veiculoId=${v.id}`}
+                      className="rounded-lg bg-action px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                    >
+                      Reservar/Alugar
+                    </Link>
+                  )}
+                </div>
+              </Card>
             ))}
           </div>
         )}

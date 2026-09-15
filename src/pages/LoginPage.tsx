@@ -4,11 +4,11 @@ import { Truck } from 'lucide-react'
 import { supabase, formatDetailedError } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
-import { Input, Select } from '@/components/ui/Input'
+import { Input } from '@/components/ui/Input'
 import { SupabaseConfigAlert } from '@/components/SupabaseConfigAlert'
-import { TEST_USERS, TEST_USER_PASSWORD, PERFIL_OPTIONS } from '@/lib/testUsers'
-import { getEmpresas, EmpresaDomainService } from '@/services/empresas'
-import type { PerfilUsuario, Empresa } from '@/types/database'
+import { TEST_USERS, TEST_USER_PASSWORD } from '@/lib/testUsers'
+import { validarChaveConvite } from '@/services/inviteKeys'
+import type { PerfilUsuario } from '@/types/database'
 import type { TestUser } from '@/lib/testUsers'
 
 type AuthMode = 'login' | 'signup'
@@ -23,10 +23,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [nome, setNome] = useState('')
-  const [perfil, setPerfil] = useState<PerfilUsuario>('motorista')
-  const [empresaId, setEmpresaId] = useState('')
-  const [empresas, setEmpresas] = useState<Empresa[]>([])
-  const [loadingEmpresas, setLoadingEmpresas] = useState(false)
+  const [chaveConvite, setChaveConvite] = useState('')
   const [remember, setRemember] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -42,24 +39,6 @@ export function LoginPage() {
       }
     })
   }, [])
-
-  useEffect(() => {
-    if (mode !== 'signup') return
-
-    setLoadingEmpresas(true)
-    getEmpresas()
-      .then(({ data, error }) => {
-        if (data) setEmpresas(data)
-        if (error) console.error('[Login] Falha ao carregar empresas:', error.message)
-      })
-      .finally(() => setLoadingEmpresas(false))
-  }, [mode])
-
-  const requiresEmpresa = EmpresaDomainService.perfilRequerEmpresa(perfil)
-  const empresaOptions = [
-    { value: '', label: loadingEmpresas ? 'Carregando empresas...' : 'Selecione a empresa' },
-    ...empresas.map(e => ({ value: e.id, label: e.nome })),
-  ]
 
   function resetMessages() {
     setError('')
@@ -100,23 +79,26 @@ export function LoginPage() {
     e.preventDefault()
     resetMessages()
 
-    const empresaError = EmpresaDomainService.validarVinculoEmpresa(
-      perfil,
-      empresaId || null,
-    )
-    if (empresaError) {
-      setError(empresaError)
+    if (!chaveConvite.trim()) {
+      setError('Informe a Chave de Acesso da Empresa.')
       return
     }
 
     setLoading(true)
 
+    const { data: chaveData, error: chaveError } = await validarChaveConvite(chaveConvite.trim())
+    if (chaveError || !chaveData) {
+      setLoading(false)
+      setError(chaveError?.message ?? 'Chave de convite inválida.')
+      return
+    }
+
     const { error: signUpError, needsConfirmation } = await signUp({
       email,
       password,
       nome,
-      perfil,
-      empresa_id: empresaId || null,
+      perfil: chaveData.perfil,
+      empresa_id: chaveData.empresaId,
     })
     setLoading(false)
 
@@ -314,27 +296,17 @@ export function LoginPage() {
                 minLength={6}
                 required
               />
-              <Select
-                label="Perfil inicial"
-                value={perfil}
-                onChange={e => setPerfil(e.target.value as PerfilUsuario)}
-                options={PERFIL_OPTIONS}
+              <Input
+                label="Chave de Acesso da Empresa"
+                type="text"
+                placeholder="Chave_Motorista_XXXX ou Chave_Mecanico_XXXX"
+                value={chaveConvite}
+                onChange={e => setChaveConvite(e.target.value)}
+                required
               />
-              {requiresEmpresa && (
-                <Select
-                  label="Empresa"
-                  value={empresaId}
-                  onChange={e => setEmpresaId(e.target.value)}
-                  options={empresaOptions}
-                  required
-                  disabled={loadingEmpresas || empresas.length === 0}
-                />
-              )}
-              {requiresEmpresa && !loadingEmpresas && empresas.length === 0 && (
-                <p className="text-xs text-warning">
-                  Nenhuma empresa disponível. Peça ao administrador para cadastrar uma empresa.
-                </p>
-              )}
+              <p className="text-xs text-gray-500">
+                Use a chave fornecida pelo gestor da sua empresa. O perfil (Motorista ou Mecânico) é definido automaticamente pela chave.
+              </p>
 
               {error && (
                 <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">

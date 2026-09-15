@@ -97,6 +97,11 @@ export class Manutencao {
     return this.valor.isPositive()
   }
 
+  /** Valor Total da manutenção (soma consolidada). */
+  calcularValorTotal(): Money {
+    return this.valor
+  }
+
   entraEmRelatorioFinanceiro(): boolean {
     const normalized = String(this.status).trim().toLowerCase()
     if (!normalized || normalized === 'cancelada') return false

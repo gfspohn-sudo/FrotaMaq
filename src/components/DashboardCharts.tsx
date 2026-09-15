@@ -11,6 +11,7 @@ interface DashboardChartsProps {
   totalGeral?: number
   periodLabel?: string
   showCostCard?: boolean
+  showStatusCharts?: boolean
 }
 
 export function DashboardCharts({
@@ -18,6 +19,7 @@ export function DashboardCharts({
   totalGeral,
   periodLabel = 'Custo total do mês',
   showCostCard = false,
+  showStatusCharts = true,
 }: DashboardChartsProps) {
   const statusChartData = [
     { name: 'Concluídas', value: dashboard.statusCounts.concluidas, color: STATUS_COLORS.concluidas },
@@ -40,7 +42,7 @@ export function DashboardCharts({
         </Card>
       )}
 
-      {(statusChartData.length > 0 || typeChartData.length > 0) && (
+      {showStatusCharts && (statusChartData.length > 0 || typeChartData.length > 0) && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {statusChartData.length > 0 && (
             <Card>

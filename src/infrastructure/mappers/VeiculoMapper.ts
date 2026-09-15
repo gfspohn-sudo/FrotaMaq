@@ -3,17 +3,21 @@ import { Veiculo } from '@/domain/entities/Veiculo'
 
 export class VeiculoMapper {
   static toDomain(row: VeiculoDTO): Veiculo {
+    const anoModelo = row.ano_modelo ?? row.ano
     return new Veiculo({
       id: row.id,
       empresaId: row.empresa_id,
       placa: row.placa,
       modelo: row.modelo,
       marca: row.marca,
-      ano: row.ano,
+      ano: anoModelo,
+      anoModelo,
+      anoCarroceria: row.ano_carroceria ?? null,
       kmAtual: row.km_atual,
       status: row.status,
       fotoUrl: row.foto_url,
       createdAt: row.created_at,
+      empresaNome: row.empresas?.nome ?? null,
     })
   }
 

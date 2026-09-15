@@ -9,15 +9,22 @@ import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import {
   getEmpresas,
-  criarEmpresa,
   excluirEmpresa,
   getEmpresaDependencies,
   EmpresaDomainService,
 } from '@/services/empresas'
-import type { Empresa } from '@/types/database'
+import { criarEmpresaComOnboarding } from '@/services/inviteKeys'
+import type { ChaveConvite, Empresa } from '@/types/database'
 import type { EmpresaDependencies } from '@/domain/repositories/IEmpresaRepository'
 
-const emptyForm = { nome: '', cnpj: '', slug: '' }
+const emptyForm = {
+  nome: '',
+  cnpj: '',
+  slug: '',
+  gestor_nome: '',
+  gestor_email: '',
+  gestor_senha: '',
+}
 
 export function EmpresasPage() {
   const { profile } = useAuth()
@@ -32,6 +39,7 @@ export function EmpresasPage() {
   const [dependencies, setDependencies] = useState<EmpresaDependencies | null>(null)
   const [loadingDeps, setLoadingDeps] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [createdChaves, setCreatedChaves] = useState<ChaveConvite[]>([])
 
   const loadEmpresas = useCallback(async () => {
     setLoading(true)
@@ -58,11 +66,14 @@ export function EmpresasPage() {
     setFeedback('')
     setSaving(true)
 
-    const { data, error } = await criarEmpresa(
+    const { data, error } = await criarEmpresaComOnboarding(
       {
         nome: form.nome,
         cnpj: form.cnpj || null,
         slug: form.slug,
+        gestor_nome: form.gestor_nome,
+        gestor_email: form.gestor_email,
+        gestor_senha: form.gestor_senha,
       },
       profile,
     )
@@ -71,14 +82,19 @@ export function EmpresasPage() {
 
     if (error) {
       setFeedback(error.message)
+      if (data?.empresa) {
+        setEmpresas(prev => [...prev, data.empresa].sort((a, b) => a.nome.localeCompare(b.nome)))
+        setCreatedChaves(data.chaves ?? [])
+      }
       return
     }
 
     if (data) {
-      setEmpresas(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
+      setEmpresas(prev => [...prev, data.empresa].sort((a, b) => a.nome.localeCompare(b.nome)))
+      setCreatedChaves(data.chaves)
       setShowCreate(false)
       setForm(emptyForm)
-      setFeedback(`Empresa "${data.nome}" criada com sucesso.`)
+      setFeedback(`Empresa "${data.empresa.nome}" criada. Gestor: ${data.gestorCriado ? 'cadastrado' : 'pendente confirmação'}.`)
     }
   }
 
@@ -141,6 +157,22 @@ export function EmpresasPage() {
           <p className="rounded-lg bg-action/10 px-3 py-2 text-sm text-action">{feedback}</p>
         )}
 
+        {createdChaves.length > 0 && (
+          <section>
+            <h2 className="mb-2 text-sm font-semibold text-gray-900">Chaves de convite geradas</h2>
+            <div className="space-y-2">
+              {createdChaves.map(chave => (
+                <Card key={chave.id}>
+                  <p className="text-xs font-medium uppercase text-gray-500">
+                    {chave.perfil === 'motorista' ? 'Motorista' : 'Mecânico'}
+                  </p>
+                  <p className="mt-1 break-all font-mono text-sm text-gray-900">{chave.token}</p>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
@@ -201,6 +233,29 @@ export function EmpresasPage() {
             onChange={e => setForm(prev => ({ ...prev, slug: e.target.value }))}
             required
             placeholder="minha-empresa"
+          />
+          <hr className="border-gray-200" />
+          <p className="text-sm font-medium text-gray-700">Primeiro Gestor da Empresa</p>
+          <Input
+            label="Nome do Gestor"
+            value={form.gestor_nome}
+            onChange={e => setForm(prev => ({ ...prev, gestor_nome: e.target.value }))}
+            required
+          />
+          <Input
+            label="E-mail do Gestor"
+            type="email"
+            value={form.gestor_email}
+            onChange={e => setForm(prev => ({ ...prev, gestor_email: e.target.value }))}
+            required
+          />
+          <Input
+            label="Senha do Gestor"
+            type="password"
+            value={form.gestor_senha}
+            onChange={e => setForm(prev => ({ ...prev, gestor_senha: e.target.value }))}
+            minLength={6}
+            required
           />
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowCreate(false)}>

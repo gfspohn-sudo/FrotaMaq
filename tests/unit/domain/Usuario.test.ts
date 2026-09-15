@@ -31,6 +31,26 @@ describe('Hierarquia Usuario — permissões', () => {
     })
   })
 
+  describe('podeSolicitarReserva()', () => {
+    it.each([
+      ['SuperAdmin', superAdmin, false],
+      ['Gestor', gestor, false],
+      ['Motorista', motorista, true],
+    ] as const)('%s', (_label, usuario, expected) => {
+      expect(usuario.podeSolicitarReserva()).toBe(expected)
+    })
+  })
+
+  describe('podeAprovarReserva()', () => {
+    it.each([
+      ['SuperAdmin', superAdmin, true],
+      ['Gestor', gestor, true],
+      ['Motorista', motorista, false],
+    ] as const)('%s', (_label, usuario, expected) => {
+      expect(usuario.podeAprovarReserva()).toBe(expected)
+    })
+  })
+
   describe('podeGerenciarEmpresas()', () => {
     it.each([
       ['SuperAdmin', superAdmin, true],
@@ -52,9 +72,12 @@ describe('Hierarquia Usuario — permissões', () => {
       expect(gestor.podeVisualizarEmpresa('outra')).toBe(false)
     })
 
-    it('Motorista é somente leitura', () => {
+    it('Motorista é somente leitura mas pode solicitar reserva e ver relatório individual', () => {
       expect(motorista.isSomenteLeitura()).toBe(true)
       expect(motorista.podeAtualizarKm()).toBe(false)
+      expect(motorista.podeSolicitarReserva()).toBe(true)
+      expect(motorista.podeVisualizarRelatorioIndividual()).toBe(true)
+      expect(motorista.podeVisualizarRelatorios()).toBe(false)
     })
   })
 })

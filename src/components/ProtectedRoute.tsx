@@ -8,6 +8,10 @@ interface ProtectedRouteProps {
   /** @deprecated use requireReports */
   requireFinancial?: boolean
   requireSuperAdmin?: boolean
+  /** Relatórios com escopo (motorista) ou globais (gestor). */
+  requireScopedReports?: boolean
+  requireHistory?: boolean
+  requireGlobalAlerts?: boolean
 }
 
 export function ProtectedRoute({
@@ -15,6 +19,9 @@ export function ProtectedRoute({
   requireReports = false,
   requireFinancial = false,
   requireSuperAdmin = false,
+  requireScopedReports = false,
+  requireHistory = false,
+  requireGlobalAlerts = false,
 }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth()
   const location = useLocation()
@@ -33,7 +40,21 @@ export function ProtectedRoute({
   }
 
   const usuario = PermissionService.resolve(profile)
+  const vm = PermissionService.toViewModel(usuario)
+
   if (needsReports && !usuario.podeVisualizarRelatorios()) {
+    return <Navigate to="/" replace />
+  }
+
+  if (requireScopedReports && !vm.canViewScopedReports) {
+    return <Navigate to="/" replace />
+  }
+
+  if (requireHistory && !usuario.podeVisualizarHistoricoGeral()) {
+    return <Navigate to="/" replace />
+  }
+
+  if (requireGlobalAlerts && !usuario.podeVisualizarAlertasGlobais()) {
     return <Navigate to="/" replace />
   }
 

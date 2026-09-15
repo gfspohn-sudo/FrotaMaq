@@ -2,6 +2,9 @@ import { SupabaseVeiculoRepository } from '@/infrastructure/repositories/Supabas
 import { SupabaseManutencaoRepository } from '@/infrastructure/repositories/SupabaseManutencaoRepository'
 import { SupabaseEmpresaRepository } from '@/infrastructure/repositories/SupabaseEmpresaRepository'
 import { SupabaseAlertaRepository } from '@/infrastructure/repositories/SupabaseAlertaRepository'
+import { SupabaseReservaRepository } from '@/infrastructure/repositories/SupabaseReservaRepository'
+import { SupabaseChaveConviteRepository } from '@/infrastructure/repositories/SupabaseChaveConviteRepository'
+import { SupabaseSolicitacaoRelatorioRepository } from '@/infrastructure/repositories/SupabaseSolicitacaoRelatorioRepository'
 import { GetFinancialReportUseCase } from '@/application/use-cases/GetFinancialReportUseCase'
 import { GetMaintenanceDashboardUseCase } from '@/application/use-cases/GetMaintenanceDashboardUseCase'
 import { GetFleetSummaryUseCase } from '@/application/use-cases/GetFleetSummaryUseCase'
@@ -22,6 +25,22 @@ import {
   UpdateManutencaoStatusUseCase,
   UpdateManutencaoUseCase,
 } from '@/application/use-cases/ManutencaoUseCases'
+import {
+  ListReservasUseCase,
+  SolicitarReservaUseCase,
+  AtualizarStatusReservaUseCase,
+} from '@/application/use-cases/ReservaUseCases'
+import { GetVeiculoReportUseCase } from '@/application/use-cases/GetVeiculoReportUseCase'
+import { GetNotificationsUseCase } from '@/application/use-cases/GetNotificationsUseCase'
+import {
+  SolicitarAcessoRelatorioUseCase,
+  ListSolicitacoesRelatorioUseCase,
+  AtualizarSolicitacaoRelatorioUseCase,
+} from '@/application/use-cases/SolicitacaoRelatorioUseCases'
+import {
+  ValidarChaveConviteUseCase,
+  CriarEmpresaComChavesUseCase,
+} from '@/application/use-cases/InviteKeyUseCases'
 
 /** Composition Root — injeção de dependências da aplicação. */
 class AppContainer {
@@ -29,6 +48,9 @@ class AppContainer {
   readonly manutencaoRepository = new SupabaseManutencaoRepository()
   readonly empresaRepository = new SupabaseEmpresaRepository()
   readonly alertaRepository = new SupabaseAlertaRepository()
+  readonly reservaRepository = new SupabaseReservaRepository()
+  readonly chaveConviteRepository = new SupabaseChaveConviteRepository()
+  readonly solicitacaoRelatorioRepository = new SupabaseSolicitacaoRelatorioRepository()
 
   readonly getFinancialReport = new GetFinancialReportUseCase(this.manutencaoRepository)
   readonly getMaintenanceDashboard = new GetMaintenanceDashboardUseCase(this.manutencaoRepository)
@@ -48,6 +70,36 @@ class AppContainer {
   readonly createManutencao = new CreateManutencaoUseCase(this.manutencaoRepository)
   readonly updateManutencaoStatus = new UpdateManutencaoStatusUseCase(this.manutencaoRepository)
   readonly updateManutencao = new UpdateManutencaoUseCase(this.manutencaoRepository)
+  readonly listReservas = new ListReservasUseCase(this.reservaRepository)
+  readonly solicitarReserva = new SolicitarReservaUseCase(
+    this.reservaRepository,
+    this.veiculoRepository,
+    this.manutencaoRepository,
+  )
+  readonly atualizarStatusReserva = new AtualizarStatusReservaUseCase(this.reservaRepository)
+  readonly getVeiculoReport = new GetVeiculoReportUseCase(
+    this.veiculoRepository,
+    this.manutencaoRepository,
+    this.reservaRepository,
+    this.solicitacaoRelatorioRepository,
+  )
+  readonly solicitarAcessoRelatorio = new SolicitarAcessoRelatorioUseCase(
+    this.solicitacaoRelatorioRepository,
+    this.veiculoRepository,
+  )
+  readonly listSolicitacoesRelatorio = new ListSolicitacoesRelatorioUseCase(this.solicitacaoRelatorioRepository)
+  readonly atualizarSolicitacaoRelatorio = new AtualizarSolicitacaoRelatorioUseCase(this.solicitacaoRelatorioRepository)
+  readonly validarChaveConvite = new ValidarChaveConviteUseCase(this.chaveConviteRepository)
+  readonly criarEmpresaComChaves = new CriarEmpresaComChavesUseCase(
+    this.empresaRepository,
+    this.chaveConviteRepository,
+  )
+  readonly getNotifications = new GetNotificationsUseCase(
+    this.alertaRepository,
+    this.reservaRepository,
+    this.manutencaoRepository,
+    this.veiculoRepository,
+  )
 }
 
 export const container = new AppContainer()

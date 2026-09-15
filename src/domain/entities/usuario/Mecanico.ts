@@ -22,4 +22,13 @@ export class Mecanico extends Usuario {
   podeGerenciarEmpresas() { return false }
   podeCriarEmpresa() { return false }
   podeExcluirEmpresa() { return false }
+  podeSolicitarReserva() { return false }
+  podeAprovarReserva() { return false }
+  podeVisualizarRelatorioIndividual() { return true }
+  podeVisualizarMetricasFinanceirasGlobais() { return false }
+  podeVisualizarHistoricoGeral() { return true }
+  podeVisualizarAlertasGlobais() { return true }
+  podeSolicitarAcessoRelatorio() { return true }
+  podeAprovarAcessoRelatorio() { return false }
+  podeAbrirRelatorioIndividualDireto() { return false }
 }

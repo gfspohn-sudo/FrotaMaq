@@ -30,6 +30,15 @@ export abstract class Usuario {
   abstract podeGerenciarEmpresas(): boolean
   abstract podeCriarEmpresa(): boolean
   abstract podeExcluirEmpresa(): boolean
+  abstract podeSolicitarReserva(): boolean
+  abstract podeAprovarReserva(): boolean
+  abstract podeVisualizarRelatorioIndividual(): boolean
+  abstract podeVisualizarMetricasFinanceirasGlobais(): boolean
+  abstract podeVisualizarHistoricoGeral(): boolean
+  abstract podeVisualizarAlertasGlobais(): boolean
+  abstract podeSolicitarAcessoRelatorio(): boolean
+  abstract podeAprovarAcessoRelatorio(): boolean
+  abstract podeAbrirRelatorioIndividualDireto(): boolean
 
   get iniciais(): string {
     return this.nome

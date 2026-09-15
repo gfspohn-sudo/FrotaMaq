@@ -1,25 +1,50 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart3, Bell, LogOut, History, Building2 } from 'lucide-react'
+import { BarChart3, Bell, LogOut, History, Building2, CalendarClock, KeyRound } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERFIL_LABELS } from '@/lib/tenantFilter'
-
-const menuItems = [
-  { to: '/historico', icon: History, label: 'Histórico de Manutenções', requireReports: false },
-  { to: '/relatorios', icon: BarChart3, label: 'Relatórios', requireReports: true },
-  { to: '/alertas', icon: Bell, label: 'Alertas', requireReports: false },
-]
+import { getChavesConviteEmpresa } from '@/services/inviteKeys'
+import type { ChaveConvite } from '@/types/database'
 
 export function MorePage() {
   const { profile, signOut } = useAuth()
-  const { canViewReports, canManageEmpresas } = usePermissions()
+  const {
+    canViewReports,
+    canManageEmpresas,
+    canRequestReserva,
+    canApproveReserva,
+    canViewScopedReports,
+    canViewGeneralHistory,
+    canViewGlobalAlerts,
+    canApproveReportAccess,
+  } = usePermissions()
+  const [chaves, setChaves] = useState<ChaveConvite[]>([])
+
+  useEffect(() => {
+    if (!canApproveReportAccess || !profile?.empresa_id) return
+    getChavesConviteEmpresa(profile.empresa_id, profile).then(({ data }) => {
+      if (data) setChaves(data)
+    })
+  }, [canApproveReportAccess, profile])
 
   const visibleItems = [
-    ...menuItems.filter(item => !item.requireReports || canViewReports),
+    ...(canViewGeneralHistory
+      ? [{ to: '/historico', icon: History, label: 'Histórico de Manutenções' }]
+      : []),
+    ...((canViewReports || canViewScopedReports)
+      ? [{ to: '/relatorios', icon: BarChart3, label: 'Relatórios' }]
+      : []),
+    ...(canViewGlobalAlerts
+      ? [{ to: '/alertas', icon: Bell, label: 'Alertas' }]
+      : []),
+    ...((canRequestReserva || canApproveReserva)
+      ? [{ to: '/reservas', icon: CalendarClock, label: 'Reservas' }]
+      : []),
     ...(canManageEmpresas
-      ? [{ to: '/empresas', icon: Building2, label: 'Empresas', requireReports: false }]
+      ? [{ to: '/empresas', icon: Building2, label: 'Empresas' }]
       : []),
   ]
 
@@ -40,6 +65,28 @@ export function MorePage() {
             </p>
           </div>
         </Card>
+
+        {canApproveReportAccess && chaves.length > 0 && (
+          <section>
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900">
+              <KeyRound className="h-4 w-4" />
+              Chaves de Convite da Empresa
+            </h2>
+            <div className="space-y-2">
+              {chaves.map(chave => (
+                <Card key={chave.id}>
+                  <p className="text-xs font-medium uppercase text-gray-500">
+                    {chave.perfil === 'motorista' ? 'Motorista' : 'Mecânico'}
+                  </p>
+                  <p className="mt-1 break-all font-mono text-sm text-gray-900">{chave.token}</p>
+                </Card>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Compartilhe estas chaves para auto-cadastro de motoristas e mecânicos.
+            </p>
+          </section>
+        )}
 
         <div className="space-y-1">
           {visibleItems.map(item => (

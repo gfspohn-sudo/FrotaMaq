@@ -22,7 +22,10 @@ export class PermissionService {
 
       canViewDashboard: usuario.podeVisualizarDashboard(),
       canViewReports: usuario.podeVisualizarRelatorios(),
-      canViewFinancialReports: usuario.podeVisualizarRelatorios(),
+      canViewFinancialReports: usuario.podeVisualizarMetricasFinanceirasGlobais(),
+      canViewGlobalFinancialMetrics: usuario.podeVisualizarMetricasFinanceirasGlobais(),
+      canViewGeneralHistory: usuario.podeVisualizarHistoricoGeral(),
+      canViewGlobalAlerts: usuario.podeVisualizarAlertasGlobais(),
 
       canManageVehicles: usuario.podeGerenciarVeiculos(),
       canUpdateKm: usuario.podeAtualizarKm(),
@@ -38,6 +41,14 @@ export class PermissionService {
       canManageEmpresas: usuario.podeGerenciarEmpresas(),
       canCreateEmpresa: usuario.podeCriarEmpresa(),
       canDeleteEmpresa: usuario.podeExcluirEmpresa(),
+
+      canRequestReserva: usuario.podeSolicitarReserva(),
+      canApproveReserva: usuario.podeAprovarReserva(),
+      canViewIndividualReports: usuario.podeVisualizarRelatorioIndividual(),
+      canViewScopedReports: usuario.podeVisualizarRelatorioIndividual() || usuario.podeVisualizarRelatorios(),
+      canRequestReportAccess: usuario.podeSolicitarAcessoRelatorio(),
+      canApproveReportAccess: usuario.podeAprovarAcessoRelatorio(),
+      canOpenReportDirectly: usuario.podeAbrirRelatorioIndividualDireto(),
     }
   }
 }

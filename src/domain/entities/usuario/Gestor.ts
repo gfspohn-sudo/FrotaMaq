@@ -35,4 +35,13 @@ export class Gestor extends Usuario {
   podeGerenciarEmpresas() { return false }
   podeCriarEmpresa() { return false }
   podeExcluirEmpresa() { return false }
+  podeSolicitarReserva() { return false }
+  podeAprovarReserva() { return true }
+  podeVisualizarRelatorioIndividual() { return true }
+  podeVisualizarMetricasFinanceirasGlobais() { return true }
+  podeVisualizarHistoricoGeral() { return true }
+  podeVisualizarAlertasGlobais() { return true }
+  podeSolicitarAcessoRelatorio() { return false }
+  podeAprovarAcessoRelatorio() { return true }
+  podeAbrirRelatorioIndividualDireto() { return true }
 }

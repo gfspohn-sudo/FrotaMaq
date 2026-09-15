@@ -21,7 +21,8 @@ const emptyForm = {
   placa: '',
   modelo: '',
   marca: '',
-  ano: '',
+  ano_modelo: '',
+  ano_carroceria: '',
   km_atual: '',
   status: 'em_operacao' as StatusVeiculo,
   foto_url: '',
@@ -50,7 +51,8 @@ export function VehicleFormModal({ isOpen, onClose, onSuccess, veiculo }: Vehicl
         placa: veiculo.placa,
         modelo: veiculo.modelo,
         marca: veiculo.marca,
-        ano: String(veiculo.ano),
+        ano_modelo: String(veiculo.ano_modelo ?? veiculo.ano),
+        ano_carroceria: veiculo.ano_carroceria ? String(veiculo.ano_carroceria) : '',
         km_atual: String(veiculo.km_atual),
         status: veiculo.status,
         foto_url: veiculo.foto_url ?? '',
@@ -88,11 +90,14 @@ export function VehicleFormModal({ isOpen, onClose, onSuccess, veiculo }: Vehicl
       return
     }
 
+    const anoModelo = Number(form.ano_modelo)
     const payload: NovoVeiculo = {
       placa: form.placa.trim().toUpperCase(),
       modelo: form.modelo.trim(),
       marca: form.marca.trim(),
-      ano: Number(form.ano),
+      ano: anoModelo,
+      ano_modelo: anoModelo,
+      ano_carroceria: form.ano_carroceria ? Number(form.ano_carroceria) : null,
       km_atual: Number(form.km_atual),
       status: form.status,
       foto_url: form.foto_url.trim() || undefined,
@@ -168,25 +173,34 @@ export function VehicleFormModal({ isOpen, onClose, onSuccess, veiculo }: Vehicl
         />
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Ano"
+            label="Ano do Modelo"
             type="number"
             min={1900}
             max={2100}
             placeholder="2022"
-            value={form.ano}
-            onChange={e => setForm(prev => ({ ...prev, ano: e.target.value }))}
+            value={form.ano_modelo}
+            onChange={e => setForm(prev => ({ ...prev, ano_modelo: e.target.value }))}
             required
           />
           <Input
-            label="Quilometragem / Horímetro"
+            label="Ano da Carroceria"
             type="number"
-            min={0}
-            placeholder="45000"
-            value={form.km_atual}
-            onChange={e => setForm(prev => ({ ...prev, km_atual: e.target.value }))}
-            required
+            min={1900}
+            max={2100}
+            placeholder="Opcional"
+            value={form.ano_carroceria}
+            onChange={e => setForm(prev => ({ ...prev, ano_carroceria: e.target.value }))}
           />
         </div>
+        <Input
+          label="Quilometragem Atual"
+          type="number"
+          min={0}
+          placeholder="45000"
+          value={form.km_atual}
+          onChange={e => setForm(prev => ({ ...prev, km_atual: e.target.value }))}
+          required
+        />
         <Select
           label="Status inicial"
           value={form.status}

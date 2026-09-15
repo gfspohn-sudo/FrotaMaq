@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Car, Gauge, Pencil, Trash2, Droplets, Filter, CircleDot } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -11,6 +11,11 @@ import { MaintenanceCard } from '@/components/MaintenanceCard'
 import { VehicleFormModal } from '@/components/VehicleFormModal'
 import { getVeiculoById, deleteVeiculo, updateVeiculo } from '@/services/vehicles'
 import { getManutencoes } from '@/services/maintenance'
+import {
+  solicitarAcessoRelatorio,
+  getSolicitacoesRelatorio,
+} from '@/services/solicitacoesRelatorio'
+import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { Veiculo, Manutencao } from '@/types/database'
 import {
@@ -20,6 +25,7 @@ import {
   URGENCY_LABELS,
 } from '@/types/database'
 import { getMaintenanceUrgency, formatDate } from '@/lib/maintenanceStatus'
+import { formatVehicleDisplayName, formatVehicleSubtitle } from '@/lib/vehicleDisplay'
 
 type Tab = 'resumo' | 'manutencoes' | 'historico'
 
@@ -56,7 +62,16 @@ function deriveReviewItems(manutencoes: Manutencao[], kmAtual: number): ReviewIt
 export function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { canCreateMaintenance, canManageVehicles, canUpdateKm } = usePermissions()
+  const { profile } = useAuth()
+  const {
+    canCreateMaintenance,
+    canManageVehicles,
+    canUpdateKm,
+    canOpenReportDirectly,
+    canRequestReportAccess,
+  } = usePermissions()
+  const [reportAccessStatus, setReportAccessStatus] = useState<'none' | 'PENDENTE' | 'APROVADO' | 'REJEITADO'>('none')
+  const [requestingReport, setRequestingReport] = useState(false)
   const [veiculo, setVeiculo] = useState<Veiculo | null>(null)
   const [manutencoes, setManutencoes] = useState<Manutencao[]>([])
   const [tab, setTab] = useState<Tab>('resumo')
@@ -71,6 +86,33 @@ export function VehicleDetailPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
+  async function loadReportAccessStatus(veiculoId: string) {
+    if (!canRequestReportAccess || !profile) return
+    const { data } = await getSolicitacoesRelatorio(profile, { status: 'APROVADO' })
+    if (data?.some(s => s.veiculo_id === veiculoId)) {
+      setReportAccessStatus('APROVADO')
+      return
+    }
+    const { data: pendentes } = await getSolicitacoesRelatorio(profile, { status: 'PENDENTE' })
+    if (pendentes?.some(s => s.veiculo_id === veiculoId)) {
+      setReportAccessStatus('PENDENTE')
+      return
+    }
+    setReportAccessStatus('none')
+  }
+
+  async function handleSolicitarRelatorio() {
+    if (!id) return
+    setRequestingReport(true)
+    const { error } = await solicitarAcessoRelatorio(profile, id)
+    setRequestingReport(false)
+    if (!error) {
+      setReportAccessStatus('PENDENTE')
+    } else {
+      setError(error.message)
+    }
+  }
+
   async function loadData() {
     if (!id) return
     setLoading(true)
@@ -80,6 +122,7 @@ export function VehicleDetailPage() {
     ])
     if (veiculoRes.data) setVeiculo(veiculoRes.data)
     if (manutencoesRes.data) setManutencoes(manutencoesRes.data)
+    await loadReportAccessStatus(id)
     setLoading(false)
   }
 
@@ -181,8 +224,12 @@ export function VehicleDetailPage() {
               )}
             </div>
             <div>
-              <h1 className="text-xl font-semibold">{veiculo.modelo}</h1>
-              <p className="text-sm text-gray-300">{veiculo.placa} · {veiculo.ano}</p>
+              <h1 className="text-xl font-semibold">
+                {formatVehicleDisplayName(veiculo.empresas?.nome ?? 'Frota', veiculo.placa)}
+              </h1>
+              <p className="text-sm text-gray-300">
+                {veiculo.modelo} · {formatVehicleSubtitle(veiculo.marca, veiculo.ano_modelo ?? veiculo.ano, veiculo.ano_carroceria)}
+              </p>
               <div className="mt-2">
                 <StatusBadge status={veiculo.status} />
               </div>
@@ -240,7 +287,7 @@ export function VehicleDetailPage() {
             <Card className="flex items-center gap-3">
               <Gauge className="h-8 w-8 text-action" />
               <div className="flex-1">
-                <p className="text-xs font-medium text-gray-500 uppercase">Quilometragem / Horímetro</p>
+                <p className="text-xs font-medium text-gray-500 uppercase">Quilometragem Atual</p>
                 {editingKm ? (
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
                     <input
@@ -278,6 +325,39 @@ export function VehicleDetailPage() {
                 )}
               </div>
             </Card>
+
+            {canOpenReportDirectly && id && (
+              <Link to={`/veiculos/${id}/relatorio`}>
+                <Card className="text-center text-sm font-medium text-action hover:bg-action/5">
+                  Ver relatório individual deste veículo
+                </Card>
+              </Link>
+            )}
+
+            {canRequestReportAccess && id && reportAccessStatus === 'APROVADO' && (
+              <Link to={`/veiculos/${id}/relatorio`}>
+                <Card className="text-center text-sm font-medium text-action hover:bg-action/5">
+                  Ver relatório individual (acesso aprovado)
+                </Card>
+              </Link>
+            )}
+
+            {canRequestReportAccess && id && reportAccessStatus === 'PENDENTE' && (
+              <Card className="text-center text-sm text-warning">
+                Solicitação de acesso ao relatório aguardando aprovação do gestor.
+              </Card>
+            )}
+
+            {canRequestReportAccess && id && reportAccessStatus === 'none' && (
+              <Button
+                className="w-full"
+                variant="secondary"
+                disabled={requestingReport}
+                onClick={handleSolicitarRelatorio}
+              >
+                {requestingReport ? 'Enviando...' : 'Solicitar acesso ao relatório'}
+              </Button>
+            )}
 
             {ultimaManutencao && (
               <Card

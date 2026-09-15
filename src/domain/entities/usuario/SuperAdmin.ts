@@ -20,4 +20,13 @@ export class SuperAdmin extends Usuario {
   podeGerenciarEmpresas() { return true }
   podeCriarEmpresa() { return true }
   podeExcluirEmpresa() { return true }
+  podeSolicitarReserva() { return false }
+  podeAprovarReserva() { return true }
+  podeVisualizarRelatorioIndividual() { return true }
+  podeVisualizarMetricasFinanceirasGlobais() { return true }
+  podeVisualizarHistoricoGeral() { return true }
+  podeVisualizarAlertasGlobais() { return true }
+  podeSolicitarAcessoRelatorio() { return false }
+  podeAprovarAcessoRelatorio() { return true }
+  podeAbrirRelatorioIndividualDireto() { return true }
 }

@@ -10,10 +10,13 @@ export interface VeiculoProps {
   modelo: string
   marca: string
   ano: number
+  anoModelo: number
+  anoCarroceria: number | null
   kmAtual: number
   status: StatusVeiculo
   fotoUrl: string | null
   createdAt: string
+  empresaNome?: string | null
 }
 
 /** Entidade de domínio — Veículo da frota. */
@@ -24,7 +27,10 @@ export class Veiculo {
   readonly modelo: string
   readonly marca: string
   readonly ano: number
+  readonly anoModelo: number
+  readonly anoCarroceria: number | null
   readonly kmAtual: Quilometragem
+  readonly empresaNome: string | null
   readonly status: StatusVeiculo
   readonly fotoUrl: string | null
   readonly createdAt: string
@@ -36,14 +42,23 @@ export class Veiculo {
     this.modelo = props.modelo
     this.marca = props.marca
     this.ano = props.ano
+    this.anoModelo = props.anoModelo ?? props.ano
+    this.anoCarroceria = props.anoCarroceria ?? null
     this.kmAtual = Quilometragem.from(props.kmAtual)
+    this.empresaNome = props.empresaNome ?? null
     this.status = props.status
     this.fotoUrl = props.fotoUrl
     this.createdAt = props.createdAt
   }
 
+  /** @deprecated Use nomeExibicao() com nome da empresa. */
   get descricaoCompleta(): string {
-    return `${this.modelo} - ${this.placa}`
+    return this.nomeExibicao(this.empresaNome ?? 'Frota')
+  }
+
+  /** Padrão: [Empresa] - [Placa Completa] */
+  nomeExibicao(empresaNome: string): string {
+    return `${empresaNome.trim()} - ${this.placa.trim().toUpperCase()}`
   }
 
   estaEmOperacao(): boolean {
@@ -88,7 +103,10 @@ export class Veiculo {
       modelo: this.modelo,
       marca: this.marca,
       ano: this.ano,
+      anoModelo: this.anoModelo,
+      anoCarroceria: this.anoCarroceria,
       kmAtual: overrides.kmAtual ?? this.kmAtual.value,
+      empresaNome: this.empresaNome,
       status: overrides.status ?? this.status,
       fotoUrl: this.fotoUrl,
       createdAt: this.createdAt,
@@ -115,7 +133,9 @@ export class Veiculo {
       placa: this.placa,
       modelo: this.modelo,
       marca: this.marca,
-      ano: this.ano,
+      ano: this.anoModelo,
+      ano_modelo: this.anoModelo,
+      ano_carroceria: this.anoCarroceria,
       km_atual: this.kmAtual.value,
       status: this.status,
       foto_url: this.fotoUrl,

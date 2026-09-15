@@ -14,9 +14,11 @@ import { ReportsPage } from '@/pages/ReportsPage'
 import { AlertsPage } from '@/pages/AlertsPage'
 import { MorePage } from '@/pages/MorePage'
 import { EmpresasPage } from '@/pages/EmpresasPage'
+import { ReservasPage } from '@/pages/ReservasPage'
+import { VehicleReportPage } from '@/pages/VehicleReportPage'
 
-function FinancialRoute({ children }: { children: React.ReactNode }) {
-  return <ProtectedRoute requireFinancial>{children}</ProtectedRoute>
+function ScopedReportsRoute({ children }: { children: React.ReactNode }) {
+  return <ProtectedRoute requireScopedReports>{children}</ProtectedRoute>
 }
 
 function SuperAdminRoute({ children }: { children: React.ReactNode }) {
@@ -35,13 +37,15 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/veiculos" element={<VehiclesPage />} />
             <Route path="/veiculos/:id" element={<VehicleDetailPage />} />
+            <Route path="/veiculos/:id/relatorio" element={<VehicleReportPage />} />
+            <Route path="/reservas" element={<ReservasPage />} />
             <Route path="/manutencoes" element={<MaintenancePage />} />
             <Route path="/manutencoes/nova" element={<NewMaintenancePage />} />
-            <Route path="/historico" element={<MaintenanceHistoryPage />} />
-            <Route path="/alertas" element={<AlertsPage />} />
+            <Route path="/historico" element={<ProtectedRoute requireHistory><MaintenanceHistoryPage /></ProtectedRoute>} />
+            <Route path="/alertas" element={<ProtectedRoute requireGlobalAlerts><AlertsPage /></ProtectedRoute>} />
             <Route path="/mais" element={<MorePage />} />
             <Route path="/empresas" element={<SuperAdminRoute><EmpresasPage /></SuperAdminRoute>} />
-            <Route path="/relatorios" element={<FinancialRoute><ReportsPage /></FinancialRoute>} />
+            <Route path="/relatorios" element={<ScopedReportsRoute><ReportsPage /></ScopedReportsRoute>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

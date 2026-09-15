@@ -31,6 +31,11 @@ describe('PermissionService — integração com entidades Usuario', () => {
     expect(vm.canCreateMaintenance).toBe(true)
     expect(vm.canManageVehicles).toBe(false)
     expect(vm.canUpdateKm).toBe(true)
+    expect(vm.canViewReports).toBe(false)
+    expect(vm.canViewIndividualReports).toBe(true)
+    expect(vm.canViewGlobalFinancialMetrics).toBe(false)
+    expect(vm.canRequestReportAccess).toBe(true)
+    expect(vm.canOpenReportDirectly).toBe(false)
   })
 
   it('expõe permissões corretas para Motorista (somente leitura)', () => {
@@ -42,6 +47,34 @@ describe('PermissionService — integração com entidades Usuario', () => {
     expect(vm.canManageVehicles).toBe(false)
     expect(vm.canCreateMaintenance).toBe(false)
     expect(vm.canViewDashboard).toBe(true)
+    expect(vm.canViewGlobalFinancialMetrics).toBe(false)
+    expect(vm.canViewGeneralHistory).toBe(false)
+    expect(vm.canViewGlobalAlerts).toBe(false)
+    expect(vm.canViewScopedReports).toBe(true)
+  })
+
+  it('bloqueia métricas financeiras globais para Motorista e Mecânico', () => {
+    const motorista = PermissionService.toViewModel(
+      UsuarioFactory.fromProps('4', 'Mot', 'mot@test.com', 'emp-1', 'motorista'),
+    )
+    const mecanico = PermissionService.toViewModel(
+      UsuarioFactory.fromProps('3', 'Mec', 'm@test.com', 'emp-1', 'mecanico'),
+    )
+    const gestor = PermissionService.toViewModel(
+      UsuarioFactory.fromProps('2', 'Gestor', 'g@test.com', 'emp-1', 'gestor'),
+    )
+
+    expect(motorista.canViewGlobalFinancialMetrics).toBe(false)
+    expect(mecanico.canViewGlobalFinancialMetrics).toBe(false)
+    expect(gestor.canViewGlobalFinancialMetrics).toBe(true)
+  })
+
+  it('gestor pode aprovar acesso a relatórios', () => {
+    const gestor = PermissionService.toViewModel(
+      UsuarioFactory.fromProps('2', 'Gestor', 'g@test.com', 'emp-1', 'gestor'),
+    )
+    expect(gestor.canApproveReportAccess).toBe(true)
+    expect(gestor.canOpenReportDirectly).toBe(true)
   })
 
   it('resolve perfil a partir do profile DTO', () => {

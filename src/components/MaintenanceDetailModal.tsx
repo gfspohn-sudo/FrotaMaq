@@ -52,7 +52,7 @@ export function MaintenanceDetailModal({ manutencao, onClose, veiculoKm }: Maint
           <DetailRow label="Data da manutenção" value={formatDateTime(manutencao.data_hora)} />
           <DetailRow label="Status" value={STATUS_MANUTENCAO_LABELS[manutencao.status]} />
           <DetailRow
-            label="Valor"
+            label="Valor Total"
             value={formatCurrency(parseMaintenanceValor(manutencao.valor))}
           />
           <DetailRow label="Local / Oficina" value={manutencao.local || '—'} />

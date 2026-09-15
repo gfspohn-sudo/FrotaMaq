@@ -15,6 +15,7 @@ import {
 import type { EmpresaSummary, MaintenanceDashboard } from '@/services/reports'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { useTenant } from '@/contexts/TenantContext'
+import { usePermissions } from '@/hooks/usePermissions'
 import { formatCurrency } from '@/lib/maintenanceStatus'
 import type { Manutencao } from '@/types/database'
 
@@ -48,6 +49,7 @@ function EmpresaSummaryTable({ rows }: { rows: EmpresaSummary[] }) {
 
 export function DashboardPage() {
   const { filterEmpresaId, isViewingAll, empresas, selectedEmpresaId } = useTenant()
+  const { canViewGlobalFinancialMetrics, isMotorista, canViewGlobalAlerts } = usePermissions()
   const [summary, setSummary] = useState({ ativos: 0, emManutencao: 0, parados: 0, total: 0 })
   const [alertasCount, setAlertasCount] = useState(0)
   const [proximas, setProximas] = useState<Manutencao[]>([])
@@ -64,10 +66,10 @@ export function DashboardPage() {
 
     const requests: Promise<unknown>[] = [
       getFleetSummary(tenant),
-      getAlertasCount(tenant),
+      canViewGlobalAlerts ? getAlertasCount(tenant) : Promise.resolve({ count: 0 }),
       getProximasManutencoes(5, tenant),
-      getMaintenanceDashboard(tenant),
-      getFinancialReport(tenant),
+      isMotorista ? Promise.resolve({ data: null }) : getMaintenanceDashboard(tenant),
+      canViewGlobalFinancialMetrics ? getFinancialReport(tenant) : Promise.resolve({ data: null }),
     ]
 
     if (isViewingAll) {
@@ -99,7 +101,7 @@ export function DashboardPage() {
     }
 
     setLoading(false)
-  }, [filterEmpresaId, isViewingAll])
+  }, [filterEmpresaId, isViewingAll, canViewGlobalFinancialMetrics, isMotorista, canViewGlobalAlerts])
 
   useEffect(() => {
     setLoading(true)
@@ -115,7 +117,9 @@ export function DashboardPage() {
     { label: 'Veículos ativos', value: summary.ativos, color: 'text-success' },
     { label: 'Em manutenção', value: summary.emManutencao, color: 'text-warning' },
     { label: 'Parados', value: summary.parados, color: 'text-danger' },
-    { label: 'Alertas ativos', value: alertasCount, color: 'text-danger' },
+    ...(canViewGlobalAlerts
+      ? [{ label: 'Alertas ativos', value: alertasCount, color: 'text-danger' }]
+      : []),
   ]
 
   if (loading) {
@@ -151,12 +155,13 @@ export function DashboardPage() {
           ))}
         </div>
 
-        {dashboard && (
+        {dashboard && !isMotorista && (
           <DashboardCharts
             dashboard={dashboard}
             totalGeral={totalGeral}
             periodLabel={periodLabel}
-            showCostCard
+            showCostCard={canViewGlobalFinancialMetrics}
+            showStatusCharts={!isMotorista}
           />
         )}
 

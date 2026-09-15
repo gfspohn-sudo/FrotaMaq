@@ -1,27 +1,41 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Home, Car, Wrench, Menu, Plus } from 'lucide-react'
+import { Home, Car, Wrench, Menu, Plus, BarChart3 } from 'lucide-react'
 import { usePermissions } from '@/hooks/usePermissions'
 
-const navItems = [
-  { to: '/', icon: Home, label: 'Início' },
-  { to: '/veiculos', icon: Car, label: 'Veículos' },
-  { to: '/manutencoes/nova', icon: Plus, label: 'Nova', isFab: true },
-  { to: '/manutencoes', icon: Wrench, label: 'Manutenções' },
-  { to: '/mais', icon: Menu, label: 'Mais' },
-]
+interface NavItem {
+  to: string
+  icon: typeof Home
+  label: string
+  isFab?: boolean
+}
 
 export function BottomNav() {
   const location = useLocation()
-  const { canCreateMaintenance } = usePermissions()
+  const { canCreateMaintenance, canViewScopedReports, isMotorista } = usePermissions()
 
   if (location.pathname === '/login') return null
+
+  const items: NavItem[] = [
+    { to: '/', icon: Home, label: 'Início' },
+    { to: '/veiculos', icon: Car, label: 'Veículos' },
+  ]
+
+  if (canCreateMaintenance) {
+    items.push({ to: '/manutencoes/nova', icon: Plus, label: 'Nova', isFab: true })
+  } else if (isMotorista && canViewScopedReports) {
+    items.push({ to: '/relatorios', icon: BarChart3, label: 'Relatórios' })
+  }
+
+  items.push(
+    { to: '/manutencoes', icon: Wrench, label: 'Manutenções' },
+    { to: '/mais', icon: Menu, label: 'Mais' },
+  )
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white">
       <div className="mx-auto flex max-w-3xl items-end justify-around px-2 pb-safe">
-        {navItems.map(item => {
+        {items.map(item => {
           if (item.isFab) {
-            if (!canCreateMaintenance) return <div key={item.to} className="w-14" />
             return (
               <NavLink
                 key={item.to}

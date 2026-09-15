@@ -22,4 +22,13 @@ export class Motorista extends Usuario {
   podeGerenciarEmpresas() { return false }
   podeCriarEmpresa() { return false }
   podeExcluirEmpresa() { return false }
+  podeSolicitarReserva() { return true }
+  podeAprovarReserva() { return false }
+  podeVisualizarRelatorioIndividual() { return true }
+  podeVisualizarMetricasFinanceirasGlobais() { return false }
+  podeVisualizarHistoricoGeral() { return false }
+  podeVisualizarAlertasGlobais() { return false }
+  podeSolicitarAcessoRelatorio() { return false }
+  podeAprovarAcessoRelatorio() { return false }
+  podeAbrirRelatorioIndividualDireto() { return false }
 }
