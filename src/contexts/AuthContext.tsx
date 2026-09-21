@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase, getSupabaseConfigError, runInitialConnectionTest } from '@/lib/supabase'
 import { formatAuthError } from '@/lib/seedTestUsers'
+import { TENANT_STORAGE_KEY } from '@/lib/tenantFilter'
+import { notifyDataRefresh } from '@/lib/dataRefresh'
 import type { PerfilUsuario, Usuario } from '@/types/database'
 
 interface SignUpData {
@@ -25,6 +27,31 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+async function upsertUsuarioProfile(
+  userId: string,
+  email: string,
+  nome: string,
+  perfil: PerfilUsuario,
+  empresa_id: string | null | undefined,
+) {
+  const { error } = await supabase.from('usuarios').upsert(
+    {
+      id: userId,
+      email,
+      nome,
+      perfil,
+      empresa_id: empresa_id ?? null,
+    },
+    { onConflict: 'id' },
+  )
+
+  if (error) {
+    console.error('[Supabase] upsert usuarios:', error)
+    return error
+  }
+  return null
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -98,8 +125,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s)
       setUser(s?.user ?? null)
-      if (s?.user) fetchProfile(s.user.id)
-      else setProfile(null)
+      if (s?.user) {
+        localStorage.removeItem(TENANT_STORAGE_KEY)
+        fetchProfile(s.user.id)
+      } else {
+        setProfile(null)
+        localStorage.removeItem(TENANT_STORAGE_KEY)
+        notifyDataRefresh()
+      }
       setLoading(false)
     })
 
@@ -116,9 +149,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.session) {
+        localStorage.removeItem(TENANT_STORAGE_KEY)
         setSession(data.session)
         setUser(data.session.user)
         if (data.user) await fetchProfile(data.user.id)
+        notifyDataRefresh()
       }
 
       return { error: null }
@@ -145,18 +180,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: formatAuthError(error.message, { status: error.status, code: error.code }), needsConfirmation: false }
       }
 
-      if (data.user && data.session) {
-        if (empresa_id) {
-          const { error: updateError } = await supabase
-            .from('usuarios')
-            .update({ empresa_id })
-            .eq('id', data.user.id)
+      if (data.user) {
+        await upsertUsuarioProfile(data.user.id, email, nome, perfil, empresa_id ?? null)
+      }
 
-          if (updateError) {
-            console.error('[Supabase] atualizar empresa_id no cadastro:', updateError)
-          }
-        }
+      if (data.user && data.session) {
         await fetchProfile(data.user.id)
+        notifyDataRefresh()
         return { error: null, needsConfirmation: false }
       }
 
@@ -194,6 +224,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
     setUser(null)
     setSession(null)
+    localStorage.removeItem(TENANT_STORAGE_KEY)
+    notifyDataRefresh()
   }
 
   return (

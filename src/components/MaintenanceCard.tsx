@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import type { Manutencao } from '@/types/database'
-import { TIPO_MANUTENCAO_LABELS, URGENCY_BORDER, URGENCY_BG } from '@/types/database'
+import { TIPO_MANUTENCAO_LABELS, URGENCY_BORDER, URGENCY_BG, METODO_PAGAMENTO_LABELS } from '@/types/database'
 import { parseMaintenanceValor } from '@/lib/financialUtils'
 import {
   getMaintenanceUrgency,
@@ -10,6 +10,16 @@ import {
   formatCurrency,
   formatDate,
 } from '@/lib/maintenanceStatus'
+import {
+  getManutencaoData,
+  getManutencaoFormaPagamento,
+  getManutencaoLocal,
+  getManutencaoProximaData,
+  getManutencaoStatus,
+  getManutencaoValor,
+  normalizeTipoManutencao,
+} from '@/lib/dbCompat'
+import { ManutencaoMapper } from '@/infrastructure/mappers/ManutencaoMapper'
 
 interface MaintenanceCardProps {
   manutencao: Manutencao
@@ -17,6 +27,15 @@ interface MaintenanceCardProps {
   showVehicle?: boolean
   onClick?: () => void
   actions?: React.ReactNode
+  showFinancialDetails?: boolean
+}
+
+function formatFormaPagamento(m: Manutencao): string | null {
+  const raw = getManutencaoFormaPagamento(m)
+  if (!raw) return null
+  const normalized = ManutencaoMapper.normalizeFormaPagamento(raw)
+  if (normalized) return METODO_PAGAMENTO_LABELS[normalized]
+  return raw
 }
 
 export function MaintenanceCard({
@@ -25,8 +44,21 @@ export function MaintenanceCard({
   showVehicle = true,
   onClick,
   actions,
+  showFinancialDetails = true,
 }: MaintenanceCardProps) {
-  const urgency = getMaintenanceUrgency(manutencao, veiculoKm ?? manutencao.veiculos?.km_atual)
+  const tipo = normalizeTipoManutencao(manutencao.tipo_normalizado ?? manutencao.tipo)
+  const dataRef = getManutencaoData(manutencao)
+  const valorRef = getManutencaoValor(manutencao)
+  const status = getManutencaoStatus(manutencao)
+  const local = getManutencaoLocal(manutencao)
+  const responsavel = manutencao.responsavel
+  const formaPagamento = formatFormaPagamento(manutencao)
+  const proximaData = getManutencaoProximaData(manutencao)
+
+  const urgency = getMaintenanceUrgency(
+    manutencao,
+    veiculoKm ?? manutencao.veiculos?.quilometragem_atual ?? manutencao.veiculos?.km_atual,
+  )
 
   return (
     <Card
@@ -40,32 +72,44 @@ export function MaintenanceCard({
             <p className="text-sm text-gray-500">{getVehicleName(manutencao)}</p>
           )}
           <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-gray-500">
-            <span>{TIPO_MANUTENCAO_LABELS[manutencao.tipo]}</span>
+            <span>{TIPO_MANUTENCAO_LABELS[tipo]}</span>
             <span>·</span>
-            <span>{formatDate(manutencao.data_hora)}</span>
-            {manutencao.local && (
+            <span>{formatDate(dataRef)}</span>
+            {local && (
               <>
                 <span>·</span>
-                <span>{manutencao.local}</span>
+                <span>{local}</span>
               </>
             )}
-            {parseMaintenanceValor(manutencao.valor) > 0 && (
+            {responsavel && (
+              <>
+                <span>·</span>
+                <span>{responsavel}</span>
+              </>
+            )}
+            {formaPagamento && (
+              <>
+                <span>·</span>
+                <span>{formaPagamento}</span>
+              </>
+            )}
+            {showFinancialDetails && parseMaintenanceValor(valorRef) > 0 && (
               <>
                 <span>·</span>
                 <span className="font-medium text-gray-700">
-                  {formatCurrency(parseMaintenanceValor(manutencao.valor))}
+                  {formatCurrency(parseMaintenanceValor(valorRef))}
                 </span>
               </>
             )}
           </div>
-          {manutencao.proxima_manutencao_previsao && (
+          {proximaData && (
             <p className="mt-1 text-xs text-gray-400">
-              Próxima: {manutencao.proxima_manutencao_previsao}
+              Próxima: {formatDate(proximaData)}
             </p>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <StatusBadge status={manutencao.status} type="manutencao" />
+          <StatusBadge status={status} type="manutencao" />
           {onClick && <ChevronRight className="h-4 w-4 text-gray-400" />}
         </div>
       </div>

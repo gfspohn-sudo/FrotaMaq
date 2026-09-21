@@ -30,8 +30,7 @@ export class UsuarioFactory {
       case 'super_admin':
         return new SuperAdmin(id, nome, email, empresaId)
       case 'gestor':
-      case 'gerente':
-        return new Gestor(id, nome, email, empresaId, perfil)
+        return new Gestor(id, nome, email, empresaId)
       case 'mecanico':
         return new Mecanico(id, nome, email, empresaId)
       case 'motorista':

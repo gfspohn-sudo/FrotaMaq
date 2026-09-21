@@ -26,10 +26,8 @@ export interface ManutencaoProps {
   local: string | null
   responsavel: string | null
   valor: unknown
-  metodoPagamento: MetodoPagamento | null
-  proximaManutencaoPrevisao: string | null
+  metodoPagamento: MetodoPagamento | string | null
   proximaManutencaoData: string | null
-  proximaManutencaoKm: number | null
   status: StatusManutencao
   createdAt: string
   veiculoResumo?: VeiculoResumoProps | null
@@ -38,9 +36,8 @@ export interface ManutencaoProps {
 const FINANCIAL_STATUSES = [
   'concluida',
   'em_andamento',
-  'agendada',
-  'realizada',
   'pendente',
+  'realizada',
   'atrasada',
 ] as const
 
@@ -55,10 +52,8 @@ export class Manutencao {
   readonly local: string | null
   readonly responsavel: string | null
   readonly valor: Money
-  readonly metodoPagamento: MetodoPagamento | null
-  readonly proximaManutencaoPrevisao: string | null
+  readonly metodoPagamento: MetodoPagamento | string | null
   readonly proximaManutencaoData: string | null
-  readonly proximaManutencaoKm: number | null
   readonly status: StatusManutencao
   readonly createdAt: string
   readonly veiculoResumo: VeiculoResumoProps | null
@@ -74,9 +69,7 @@ export class Manutencao {
     this.responsavel = props.responsavel
     this.valor = Money.from(props.valor)
     this.metodoPagamento = props.metodoPagamento
-    this.proximaManutencaoPrevisao = props.proximaManutencaoPrevisao
     this.proximaManutencaoData = props.proximaManutencaoData
-    this.proximaManutencaoKm = props.proximaManutencaoKm
     this.status = props.status
     this.createdAt = props.createdAt
     this.veiculoResumo = props.veiculoResumo ?? null
@@ -126,27 +119,39 @@ export class Manutencao {
   }
 
   toDTO(): ManutencaoDTO {
+    const formaPagamento = typeof this.metodoPagamento === 'string'
+      ? this.metodoPagamento
+      : this.metodoPagamento ?? null
+
     return {
       id: this.id,
       empresa_id: this.empresaId,
       veiculo_id: this.veiculoId,
-      tipo: this.tipo,
       descricao: this.descricao,
-      data_hora: this.dataHora,
-      local: this.local,
-      responsavel: this.responsavel,
-      valor: this.valor.value,
-      metodo_pagamento: this.metodoPagamento,
-      proxima_manutencao_previsao: this.proximaManutencaoPrevisao,
-      proxima_manutencao_data: this.proximaManutencaoData,
-      proxima_manutencao_km: this.proximaManutencaoKm,
+      valor_total: this.valor.value,
+      data_manutencao: this.dataHora,
+      data_proxima_manutencao: this.proximaManutencaoData,
+      tipo: this.tipo.toUpperCase(),
       status: this.status,
+      forma_pagamento: formaPagamento,
+      local_manutencao: this.local,
+      responsavel: this.responsavel,
       created_at: this.createdAt,
+      tipo_normalizado: this.tipo,
+      data_hora: this.dataHora,
+      valor: this.valor.value,
+      local: this.local,
+      metodo_pagamento: typeof this.metodoPagamento === 'string'
+        ? null
+        : this.metodoPagamento,
+      proxima_manutencao_data: this.proximaManutencaoData,
       veiculos: this.veiculoResumo
         ? {
             placa: this.veiculoResumo.placa,
+            nome_exibicao: `${this.veiculoResumo.marca ?? ''} ${this.veiculoResumo.modelo}`.trim(),
             modelo: this.veiculoResumo.modelo,
             marca: this.veiculoResumo.marca ?? '',
+            quilometragem_atual: this.veiculoResumo.kmAtual ?? 0,
             km_atual: this.veiculoResumo.kmAtual ?? 0,
           }
         : undefined,

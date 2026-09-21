@@ -29,7 +29,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   })
 
   useEffect(() => {
-    if (!superAdmin) return
+    setEmpresas([])
+    if (!superAdmin) {
+      setSelectedEmpresaIdState(profile?.empresa_id ?? ALL_EMPRESAS)
+      return
+    }
 
     async function load() {
       setLoadingEmpresas(true)
@@ -39,7 +43,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     }
 
     load()
-  }, [superAdmin, profile])
+  }, [superAdmin, profile?.id, profile?.empresa_id])
 
   const setSelectedEmpresaId = useCallback((id: string) => {
     setSelectedEmpresaIdState(id)

@@ -11,7 +11,7 @@ interface NavItem {
 
 export function BottomNav() {
   const location = useLocation()
-  const { canCreateMaintenance, canViewScopedReports, isMotorista } = usePermissions()
+  const { canCreateMaintenance, canViewScopedReports, isMotorista, canViewMaintenance } = usePermissions()
 
   if (location.pathname === '/login') return null
 
@@ -26,10 +26,11 @@ export function BottomNav() {
     items.push({ to: '/relatorios', icon: BarChart3, label: 'Relatórios' })
   }
 
-  items.push(
-    { to: '/manutencoes', icon: Wrench, label: 'Manutenções' },
-    { to: '/mais', icon: Menu, label: 'Mais' },
-  )
+  if (canViewMaintenance) {
+    items.push({ to: '/manutencoes', icon: Wrench, label: 'Manutenções' })
+  }
+
+  items.push({ to: '/mais', icon: Menu, label: 'Menu' })
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white">

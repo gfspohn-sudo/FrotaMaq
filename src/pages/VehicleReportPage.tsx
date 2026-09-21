@@ -1,20 +1,30 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, BarChart3 } from 'lucide-react'
+import { ArrowLeft, BarChart3, Download } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { MaintenanceCard } from '@/components/MaintenanceCard'
+import { MaintenanceDetailModal } from '@/components/MaintenanceDetailModal'
 import { useAuth } from '@/contexts/AuthContext'
+import { usePermissions } from '@/hooks/usePermissions'
+import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { getVeiculoReport } from '@/services/vehicleReports'
+import { getVeiculoById } from '@/services/vehicles'
+import { downloadVehicleReportCsv } from '@/services/vehicleReportExport'
 import { formatCurrency } from '@/lib/maintenanceStatus'
-import type { Manutencao } from '@/types/database'
+import { getVeiculoKm } from '@/lib/dbCompat'
+import type { Manutencao, Veiculo } from '@/types/database'
 
 export function VehicleReportPage() {
   const { id } = useParams<{ id: string }>()
   const { profile } = useAuth()
+  const { canViewMaintenance } = usePermissions()
+  const [veiculo, setVeiculo] = useState<Veiculo | null>(null)
   const [nomeExibicao, setNomeExibicao] = useState('')
   const [totalGeral, setTotalGeral] = useState(0)
   const [manutencoes, setManutencoes] = useState<Manutencao[]>([])
+  const [selectedMaintenance, setSelectedMaintenance] = useState<Manutencao | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
@@ -23,22 +33,33 @@ export function VehicleReportPage() {
     setLoading(true)
     setError('')
 
-    const { data, error: reportError } = await getVeiculoReport(profile, id)
+    const [reportRes, veiculoRes] = await Promise.all([
+      getVeiculoReport(profile, id),
+      getVeiculoById(id, profile),
+    ])
     setLoading(false)
 
-    if (reportError) {
-      setError(reportError.message)
+    if (reportRes.error) {
+      setError(reportRes.error.message)
       return
     }
 
-    if (data) {
-      setNomeExibicao(data.nomeExibicao)
-      setTotalGeral(data.totalGeral)
-      setManutencoes(data.manutencoes ?? [])
+    if (veiculoRes.data) setVeiculo(veiculoRes.data)
+
+    if (reportRes.data) {
+      setNomeExibicao(reportRes.data.nomeExibicao)
+      setTotalGeral(reportRes.data.totalGeral)
+      setManutencoes(reportRes.data.manutencoes ?? [])
     }
   }, [id, profile])
 
   useEffect(() => { load() }, [load])
+  useDataRefresh(load)
+
+  function handleDownload() {
+    if (!veiculo) return
+    downloadVehicleReportCsv(veiculo, manutencoes)
+  }
 
   return (
     <div>
@@ -65,28 +86,48 @@ export function VehicleReportPage() {
               </div>
               <p className="text-sm text-gray-500">{nomeExibicao}</p>
               <p className="mt-1 text-3xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
-              <p className="mt-1 text-xs text-gray-400">Valor Total em manutenções</p>
+              <p className="mt-1 text-xs text-gray-400">Valor total em manutenções</p>
             </Card>
 
-            <section>
-              <h2 className="mb-3 text-sm font-semibold text-gray-900">
-                Manutenções ({manutencoes.length})
-              </h2>
-              {manutencoes.length === 0 ? (
-                <Card>
-                  <p className="py-4 text-center text-sm text-gray-500">Nenhuma manutenção registrada.</p>
-                </Card>
-              ) : (
-                <div className="space-y-2">
-                  {manutencoes.map(m => (
-                    <MaintenanceCard key={m.id} manutencao={m} />
-                  ))}
-                </div>
-              )}
-            </section>
+            {veiculo && (
+              <Button className="w-full" onClick={handleDownload}>
+                <Download className="mr-2 h-4 w-4" />
+                Baixar Relatório (Excel/CSV)
+              </Button>
+            )}
+
+            {canViewMaintenance && (
+              <section>
+                <h2 className="mb-3 text-sm font-semibold text-gray-900">
+                  Manutenções ({manutencoes.length})
+                </h2>
+                {manutencoes.length === 0 ? (
+                  <Card>
+                    <p className="py-4 text-center text-sm text-gray-500">Nenhuma manutenção registrada.</p>
+                  </Card>
+                ) : (
+                  <div className="space-y-2">
+                    {manutencoes.map(m => (
+                      <MaintenanceCard
+                        key={m.id}
+                        manutencao={m}
+                        onClick={() => setSelectedMaintenance(m)}
+                        showFinancialDetails
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
           </>
         )}
       </div>
+
+      <MaintenanceDetailModal
+        manutencao={selectedMaintenance}
+        onClose={() => setSelectedMaintenance(null)}
+        veiculoKm={veiculo ? getVeiculoKm(veiculo) : undefined}
+      />
     </div>
   )
 }

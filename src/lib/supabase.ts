@@ -1,11 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-export const SUPABASE_URL = 'https://aechddecxuvysrgpbord.supabase.co'
-export const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFlY2hkZGVjeHV2eXNyZ3Bib3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NjgyNTUsImV4cCI6MjEwMjA0NDI1NX0.598xZ0Vrw0vx93dpfc7wdSy3w9bWOqYTf3B_OqFtbbg'
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? ''
+const isConfigured = Boolean(supabaseUrl && supabaseAnonKey)
 
 export const NETWORK_ERROR_USER_MESSAGE =
   'Erro de Conexão de Rede: Não foi possível alcançar o servidor do Supabase. Se você estiver em uma rede corporativa/faculdade, mude para a rede do celular (4G) ou verifique se um AdBlock/Firewall está bloqueando o acesso.'
@@ -13,27 +10,29 @@ export const NETWORK_ERROR_USER_MESSAGE =
 export const supabaseConfig = {
   url: supabaseUrl,
   anonKey: supabaseAnonKey,
-  source:
-    import.meta.env.VITE_SUPABASE_URL?.trim() && import.meta.env.VITE_SUPABASE_ANON_KEY?.trim()
-      ? 'env'
-      : 'fallback',
-  isConfigured: Boolean(supabaseUrl && supabaseAnonKey),
+  source: isConfigured ? 'env' : 'missing',
+  isConfigured,
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
+/** createClient exige strings não vazias; placeholders só valem se o .env estiver ausente. */
+export const supabase = createClient(
+  supabaseUrl || 'https://unconfigured.invalid',
+  supabaseAnonKey || 'unconfigured',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
   },
-})
+)
 
-console.log('[Supabase] Instância criada com sucesso.', {
-  url: supabaseUrl,
-  keyType: 'anon (pública — NÃO usa service_role)',
-  source: supabaseConfig.source,
-  envLoaded: Boolean(import.meta.env.VITE_SUPABASE_URL?.trim()),
-})
+if (import.meta.env.DEV) {
+  console.log('[Supabase] Cliente inicializado.', {
+    configured: isConfigured,
+    source: supabaseConfig.source,
+  })
+}
 
 export interface SupabaseErrorDetails {
   status?: number
@@ -72,7 +71,9 @@ export function formatDetailedError(error: {
 }
 
 export function getSupabaseConfigError(): string | null {
-  if (!supabaseUrl || !supabaseAnonKey) return 'URL ou Anon Key ausentes.'
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return 'VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY são obrigatórias. Copie .env.example para .env e preencha as chaves do projeto.'
+  }
   if (!supabaseUrl.includes('supabase.co')) return `URL inválida: ${supabaseUrl}`
   return null
 }

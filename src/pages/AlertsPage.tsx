@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Button } from '@/components/ui/Button'
 import { getAlertas, resolveAlerta } from '@/services/alerts'
+import { useAuth } from '@/contexts/AuthContext'
 import { useNotifications } from '@/hooks/useNotifications'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useTenant } from '@/contexts/TenantContext'
@@ -13,6 +14,7 @@ import { useDataRefresh } from '@/hooks/useDataRefresh'
 import type { Alerta } from '@/types/database'
 
 export function AlertsPage() {
+  const { profile } = useAuth()
   const { canManageAlerts } = usePermissions()
   const { filterEmpresaId } = useTenant()
   const { items: notifications } = useNotifications()
@@ -22,16 +24,16 @@ export function AlertsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await getAlertas(true, { empresaId: filterEmpresaId })
+    const { data } = await getAlertas(true, { empresaId: filterEmpresaId }, profile)
     if (data) setAlertas(data)
     setLoading(false)
-  }, [filterEmpresaId])
+  }, [filterEmpresaId, profile])
 
   useEffect(() => { load() }, [load])
   useDataRefresh(load)
 
   async function handleResolve(id: string) {
-    await resolveAlerta(id)
+    await resolveAlerta(id, profile)
     load()
   }
 

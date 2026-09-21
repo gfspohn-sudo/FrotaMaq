@@ -11,18 +11,12 @@ import { useTenant } from '@/contexts/TenantContext'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { getReservas, solicitarReserva, aprovarReserva, rejeitarReserva } from '@/services/reservas'
 import { getVeiculos } from '@/services/vehicles'
-import {
-  getSolicitacoesRelatorio,
-  aprovarSolicitacaoRelatorio,
-  rejeitarSolicitacaoRelatorio,
-} from '@/services/solicitacoesRelatorio'
-import type { SolicitacaoRelatorio } from '@/services/solicitacoesRelatorio'
 import { STATUS_RESERVA_LABELS } from '@/types/database'
 import type { Reserva, Veiculo } from '@/types/database'
 
 export function ReservasPage() {
   const { profile } = useAuth()
-  const { canRequestReserva, canApproveReserva, canApproveReportAccess } = usePermissions()
+  const { canRequestReserva, canApproveReserva } = usePermissions()
   const { filterEmpresaId } = useTenant()
   const [searchParams] = useSearchParams()
   const preselectedVeiculo = searchParams.get('veiculoId') ?? ''
@@ -32,7 +26,6 @@ export function ReservasPage() {
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [error, setError] = useState('')
-  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoRelatorio[]>([])
   const [form, setForm] = useState({
     veiculo_id: preselectedVeiculo,
     data_viagem: '',
@@ -48,18 +41,14 @@ export function ReservasPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [reservasRes, veiculosRes, solicitacoesRes] = await Promise.all([
+    const [reservasRes, veiculosRes] = await Promise.all([
       getReservas(profile, { empresaId: filterEmpresaId }),
-      canRequestReserva ? getVeiculos({ empresaId: filterEmpresaId }) : Promise.resolve({ data: null }),
-      canApproveReportAccess
-        ? getSolicitacoesRelatorio(profile, { empresaId: filterEmpresaId, status: 'PENDENTE' })
-        : Promise.resolve({ data: null }),
+      canRequestReserva ? getVeiculos({ empresaId: filterEmpresaId }, profile) : Promise.resolve({ data: null }),
     ])
     if (reservasRes.data) setReservas(reservasRes.data)
     if (veiculosRes.data) setVeiculos(veiculosRes.data)
-    if (solicitacoesRes.data) setSolicitacoes(solicitacoesRes.data)
     setLoading(false)
-  }, [profile, filterEmpresaId, canRequestReserva, canApproveReportAccess])
+  }, [profile, filterEmpresaId, canRequestReserva])
 
   useEffect(() => { load() }, [load])
   useDataRefresh(load)
@@ -107,7 +96,9 @@ export function ReservasPage() {
     { value: '', label: 'Selecione o veículo' },
     ...veiculos.map(v => ({
       value: v.id,
-      label: v.empresas?.nome ? `${v.empresas.nome} - ${v.placa}` : `${v.modelo} - ${v.placa}`,
+      label: v.empresas?.nome
+        ? `${v.empresas.nome} - ${v.placa}`
+        : `${v.nome_exibicao ?? v.modelo ?? 'Veículo'} - ${v.placa}`,
     })),
   ]
 
@@ -156,30 +147,6 @@ export function ReservasPage() {
               </Button>
             </form>
           </Card>
-        )}
-
-        {canApproveReportAccess && solicitacoes.length > 0 && (
-          <section>
-            <h2 className="mb-2 text-sm font-semibold text-gray-900">Solicitações de relatório (Mecânicos)</h2>
-            <div className="space-y-2">
-              {solicitacoes.map(s => (
-                <Card key={s.id}>
-                  <p className="font-medium text-gray-900">
-                    {s.veiculos ? `${s.veiculos.modelo} - ${s.veiculos.placa}` : 'Veículo'}
-                  </p>
-                  <p className="text-xs text-gray-500">Solicitação de acesso a relatório individual</p>
-                  <div className="mt-2 flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => aprovarSolicitacaoRelatorio(profile, s.id).then(load)}>
-                      Aprovar
-                    </Button>
-                    <Button size="sm" variant="danger" className="flex-1" onClick={() => rejeitarSolicitacaoRelatorio(profile, s.id).then(load)}>
-                      Rejeitar
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </section>
         )}
 
         {canApproveReserva && (

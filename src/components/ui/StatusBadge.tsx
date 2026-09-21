@@ -17,7 +17,7 @@ const ALERTA_COLORS: Record<TipoAlerta, string> = {
 }
 
 const MANUTENCAO_COLORS: Record<StatusManutencao, string> = {
-  agendada: 'bg-blue-50 text-action',
+  pendente: 'bg-blue-50 text-action',
   em_andamento: 'bg-warning/10 text-warning',
   concluida: 'bg-success/10 text-success',
   cancelada: 'bg-gray-100 text-gray-500',

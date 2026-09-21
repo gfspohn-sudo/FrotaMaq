@@ -6,7 +6,7 @@ export class EmpresaMapper {
     return new Empresa({
       id: row.id,
       nome: row.nome,
-      slug: row.slug,
+      slug: row.slug ?? null,
       cnpj: row.cnpj,
       createdAt: row.created_at,
     })

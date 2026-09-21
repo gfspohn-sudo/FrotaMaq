@@ -16,7 +16,7 @@ export class ReservaMapper {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       veiculoPlaca: row.veiculos?.placa,
-      veiculoModelo: row.veiculos?.modelo,
+      veiculoModelo: row.veiculos?.nome_exibicao ?? row.veiculos?.modelo,
       motoristaNome: row.usuarios?.nome,
     })
   }

@@ -14,8 +14,8 @@ export class PermissionService {
       empresaId: usuario.empresaId,
 
       isSuperAdmin: usuario.perfil === 'super_admin',
-      isGestor: usuario.perfil === 'gestor' || usuario.perfil === 'gerente',
-      isGerente: usuario.perfil === 'gestor' || usuario.perfil === 'gerente',
+      isGestor: usuario.perfil === 'gestor',
+      isGerente: usuario.perfil === 'gestor',
       isMecanico: usuario.perfil === 'mecanico',
       isMotorista: usuario.perfil === 'motorista',
       isReadOnly: usuario.isSomenteLeitura(),
@@ -49,6 +49,8 @@ export class PermissionService {
       canRequestReportAccess: usuario.podeSolicitarAcessoRelatorio(),
       canApproveReportAccess: usuario.podeAprovarAcessoRelatorio(),
       canOpenReportDirectly: usuario.podeAbrirRelatorioIndividualDireto(),
+
+      canViewMaintenance: usuario.perfil !== 'motorista',
     }
   }
 }

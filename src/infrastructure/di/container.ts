@@ -19,11 +19,13 @@ import {
   CreateVeiculoUseCase,
   UpdateVeiculoUseCase,
   DeleteVeiculoUseCase,
+  DeleteAllVeiculosUseCase,
 } from '@/application/use-cases/VeiculoUseCases'
 import {
   CreateManutencaoUseCase,
   UpdateManutencaoStatusUseCase,
   UpdateManutencaoUseCase,
+  ConcluirManutencaoUseCase,
 } from '@/application/use-cases/ManutencaoUseCases'
 import {
   ListReservasUseCase,
@@ -53,7 +55,10 @@ class AppContainer {
   readonly solicitacaoRelatorioRepository = new SupabaseSolicitacaoRelatorioRepository()
 
   readonly getFinancialReport = new GetFinancialReportUseCase(this.manutencaoRepository)
-  readonly getMaintenanceDashboard = new GetMaintenanceDashboardUseCase(this.manutencaoRepository)
+  readonly getMaintenanceDashboard = new GetMaintenanceDashboardUseCase(
+    this.manutencaoRepository,
+    this.veiculoRepository,
+  )
   readonly getFleetSummary = new GetFleetSummaryUseCase(this.veiculoRepository)
   readonly getEmpresaSummaries = new GetEmpresaSummariesUseCase(
     this.empresaRepository,
@@ -67,14 +72,18 @@ class AppContainer {
   readonly createVeiculo = new CreateVeiculoUseCase(this.veiculoRepository)
   readonly updateVeiculo = new UpdateVeiculoUseCase(this.veiculoRepository)
   readonly deleteVeiculo = new DeleteVeiculoUseCase(this.veiculoRepository)
+  readonly deleteAllVeiculos = new DeleteAllVeiculosUseCase(this.veiculoRepository)
   readonly createManutencao = new CreateManutencaoUseCase(this.manutencaoRepository)
   readonly updateManutencaoStatus = new UpdateManutencaoStatusUseCase(this.manutencaoRepository)
   readonly updateManutencao = new UpdateManutencaoUseCase(this.manutencaoRepository)
+  readonly concluirManutencao = new ConcluirManutencaoUseCase(
+    this.manutencaoRepository,
+    this.veiculoRepository,
+  )
   readonly listReservas = new ListReservasUseCase(this.reservaRepository)
   readonly solicitarReserva = new SolicitarReservaUseCase(
     this.reservaRepository,
     this.veiculoRepository,
-    this.manutencaoRepository,
   )
   readonly atualizarStatusReserva = new AtualizarStatusReservaUseCase(this.reservaRepository)
   readonly getVeiculoReport = new GetVeiculoReportUseCase(

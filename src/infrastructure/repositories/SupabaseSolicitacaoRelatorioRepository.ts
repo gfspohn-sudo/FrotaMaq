@@ -3,7 +3,7 @@ import type { ISolicitacaoRelatorioRepository } from '@/domain/repositories/ISol
 import type { SolicitacaoRelatorio, StatusSolicitacaoRelatorio } from '@/types/database'
 import type { TenantFilter } from '@/domain/types/enums'
 
-const SELECT = '*, veiculos(placa, modelo)'
+const SELECT = '*, veiculos(placa, nome_exibicao)'
 
 export class SupabaseSolicitacaoRelatorioRepository implements ISolicitacaoRelatorioRepository {
   async findAll(filter?: TenantFilter & { status?: StatusSolicitacaoRelatorio; solicitanteId?: string }) {
@@ -27,8 +27,8 @@ export class SupabaseSolicitacaoRelatorioRepository implements ISolicitacaoRelat
     return { data: data as SolicitacaoRelatorio | null, error }
   }
 
-  async updateStatus(id: string, status: StatusSolicitacaoRelatorio, observacaoGestor?: string | null) {
-    const { data, error } = await supabase
+  async updateStatus(id: string, status: StatusSolicitacaoRelatorio, observacaoGestor?: string | null, empresaId?: string) {
+    let query = supabase
       .from('solicitacoes_relatorio')
       .update({
         status,
@@ -36,8 +36,8 @@ export class SupabaseSolicitacaoRelatorioRepository implements ISolicitacaoRelat
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .select(SELECT)
-      .single()
+    if (empresaId) query = query.eq('empresa_id', empresaId)
+    const { data, error } = await query.select(SELECT).single()
 
     return { data: data as SolicitacaoRelatorio | null, error }
   }

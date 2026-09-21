@@ -4,7 +4,7 @@ import type { Reserva as ReservaDTO, StatusReserva } from '@/types/database'
 import { ReservaMapper } from '@/infrastructure/mappers/ReservaMapper'
 import type { TenantFilter } from '@/domain/types/enums'
 
-const RESERVA_SELECT = '*, veiculos(placa, modelo)'
+const RESERVA_SELECT = '*, veiculos(placa, nome_exibicao)'
 
 export class SupabaseReservaRepository implements IReservaRepository {
   async findAll(filter?: ReservaListFilter) {
@@ -22,12 +22,10 @@ export class SupabaseReservaRepository implements IReservaRepository {
     return { data: ReservaMapper.toDomainList(data as ReservaDTO[] | null), error }
   }
 
-  async findById(id: string) {
-    const { data, error } = await supabase
-      .from('reservas')
-      .select(RESERVA_SELECT)
-      .eq('id', id)
-      .single()
+  async findById(id: string, empresaId?: string) {
+    let query = supabase.from('reservas').select(RESERVA_SELECT).eq('id', id)
+    if (empresaId) query = query.eq('empresa_id', empresaId)
+    const { data, error } = await query.single()
 
     return {
       data: data ? ReservaMapper.toDomain(data as ReservaDTO) : null,
@@ -55,8 +53,8 @@ export class SupabaseReservaRepository implements IReservaRepository {
     }
   }
 
-  async updateStatus(id: string, status: StatusReserva, observacaoGestor?: string | null) {
-    const { data, error } = await supabase
+  async updateStatus(id: string, status: StatusReserva, observacaoGestor?: string | null, empresaId?: string) {
+    let query = supabase
       .from('reservas')
       .update({
         status,
@@ -64,8 +62,8 @@ export class SupabaseReservaRepository implements IReservaRepository {
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .select(RESERVA_SELECT)
-      .single()
+    if (empresaId) query = query.eq('empresa_id', empresaId)
+    const { data, error } = await query.select(RESERVA_SELECT).single()
 
     return {
       data: data ? ReservaMapper.toDomain(data as ReservaDTO) : null,

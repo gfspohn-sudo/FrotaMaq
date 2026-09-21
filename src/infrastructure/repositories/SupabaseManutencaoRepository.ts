@@ -2,14 +2,17 @@ import { supabase } from '@/lib/supabase'
 import type { IManutencaoRepository, ManutencaoListFilter } from '@/domain/repositories/IManutencaoRepository'
 import type { TenantFilter } from '@/domain/types/enums'
 import type { Manutencao as ManutencaoDTO, NovaManutencao, StatusManutencao } from '@/types/database'
-import { ManutencaoMapper } from '@/infrastructure/mappers/ManutencaoMapper'
+import { ManutencaoMapper, MANUTENCAO_VEICULO_SELECT } from '@/infrastructure/mappers/ManutencaoMapper'
+
+const SELECT = `*, veiculos(${MANUTENCAO_VEICULO_SELECT})`
+const ACTIVE_DB_STATUSES = ['PENDENTE', 'EM_ANDAMENTO', 'pendente', 'em_andamento', 'AGENDADA', 'agendada']
 
 export class SupabaseManutencaoRepository implements IManutencaoRepository {
   async findAll(filter?: ManutencaoListFilter) {
     let query = supabase
       .from('manutencoes')
-      .select('*, veiculos(placa, modelo, marca, km_atual)')
-      .order('data_hora', { ascending: false })
+      .select(SELECT)
+      .order('data_manutencao', { ascending: false })
 
     if (filter?.veiculoId) query = query.eq('veiculo_id', filter.veiculoId)
     if (filter?.empresaId) query = query.eq('empresa_id', filter.empresaId)
@@ -21,10 +24,9 @@ export class SupabaseManutencaoRepository implements IManutencaoRepository {
   async findProximas(limit: number, filter?: TenantFilter) {
     let query = supabase
       .from('manutencoes')
-      .select('*, veiculos(placa, modelo, marca, km_atual)')
-      .in('status', ['agendada', 'em_andamento'])
-      .gte('data_hora', new Date().toISOString())
-      .order('data_hora', { ascending: true })
+      .select(SELECT)
+      .in('status', ACTIVE_DB_STATUSES)
+      .order('data_manutencao', { ascending: true })
       .limit(limit)
 
     if (filter?.empresaId) query = query.eq('empresa_id', filter.empresaId)
@@ -36,8 +38,8 @@ export class SupabaseManutencaoRepository implements IManutencaoRepository {
   async findWithFinancialValue(filter?: TenantFilter) {
     let query = supabase
       .from('manutencoes')
-      .select('*, veiculos(placa, modelo, marca, km_atual)')
-      .gt('valor', 0)
+      .select(SELECT)
+      .gt('valor_total', 0)
 
     if (filter?.empresaId) query = query.eq('empresa_id', filter.empresaId)
 
@@ -46,10 +48,11 @@ export class SupabaseManutencaoRepository implements IManutencaoRepository {
   }
 
   async create(input: NovaManutencao) {
+    const payload = ManutencaoMapper.toDbPayload(input)
     const { data, error } = await supabase
       .from('manutencoes')
-      .insert({ ...input, valor: input.valor ?? 0 })
-      .select('*, veiculos(placa, modelo, marca, km_atual)')
+      .insert(payload)
+      .select(SELECT)
       .single()
 
     return {
@@ -58,13 +61,15 @@ export class SupabaseManutencaoRepository implements IManutencaoRepository {
     }
   }
 
-  async updateStatus(id: string, status: StatusManutencao) {
-    const { data, error } = await supabase
+  async updateStatus(id: string, status: StatusManutencao, empresaId?: string) {
+    let query = supabase
       .from('manutencoes')
-      .update({ status })
+      .update({ status: ManutencaoMapper.statusToDb(status) })
       .eq('id', id)
-      .select('*, veiculos(placa, modelo, marca, km_atual)')
-      .single()
+
+    if (empresaId) query = query.eq('empresa_id', empresaId)
+
+    const { data, error } = await query.select(SELECT).single()
 
     return {
       data: data ? ManutencaoMapper.toDomain(data as ManutencaoDTO) : null,
@@ -72,13 +77,15 @@ export class SupabaseManutencaoRepository implements IManutencaoRepository {
     }
   }
 
-  async update(id: string, input: Partial<NovaManutencao>) {
-    const { data, error } = await supabase
-      .from('manutencoes')
-      .update(input)
-      .eq('id', id)
-      .select('*, veiculos(placa, modelo, marca, km_atual)')
-      .single()
+  async update(id: string, input: Partial<NovaManutencao>, empresaId?: string) {
+    const payload = ManutencaoMapper.toDbUpdate(input)
+    if (Object.keys(payload).length === 0) {
+      return { data: null, error: new Error('Nenhum campo para atualizar.') }
+    }
+
+    let query = supabase.from('manutencoes').update(payload).eq('id', id)
+    if (empresaId) query = query.eq('empresa_id', empresaId)
+    const { data, error } = await query.select(SELECT).single()
 
     return {
       data: data ? ManutencaoMapper.toDomain(data as ManutencaoDTO) : null,

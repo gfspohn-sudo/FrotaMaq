@@ -50,7 +50,7 @@ export function MorePage() {
 
   return (
     <div>
-      <Header title="Mais" />
+      <Header title="Menu" />
 
       <div className="space-y-4 px-4 py-4">
         <Card className="flex items-center gap-4">

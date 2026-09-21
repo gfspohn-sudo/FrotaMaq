@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { solicitarAcessoRelatorio } from '@/services/solicitacoesRelatorio'
 import { Link } from 'react-router-dom'
 import { Search, Filter as FilterIcon, Car, Plus, Database, Trash2 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
@@ -13,9 +15,21 @@ import { useTenant } from '@/contexts/TenantContext'
 import type { Veiculo, StatusVeiculo } from '@/types/database'
 import { STATUS_VEICULO_LABELS } from '@/types/database'
 import { formatVehicleDisplayName, formatVehicleSubtitle } from '@/lib/vehicleDisplay'
+import { getVeiculoMarca, getVeiculoModelo } from '@/lib/dbCompat'
+import { formatErrorMessage } from '@/lib/formatError'
+import { safeHttpsUrl } from '@/lib/safeMediaUrl'
 
 export function VehiclesPage() {
-  const { canManageVehicles, canSeedTestData, canDeleteAllVehicles, canRequestReserva } = usePermissions()
+  const { profile } = useAuth()
+  const {
+    canManageVehicles,
+    canSeedTestData,
+    canDeleteAllVehicles,
+    canRequestReserva,
+    canRequestReportAccess,
+  } = usePermissions()
+  const [reportFeedback, setReportFeedback] = useState('')
+  const [requestingReportId, setRequestingReportId] = useState<string | null>(null)
   const { filterEmpresaId, isViewingAll, empresas: tenantEmpresas } = useTenant()
   const [veiculos, setVeiculos] = useState<Veiculo[]>([])
   const [search, setSearch] = useState('')
@@ -27,16 +41,28 @@ export function VehiclesPage() {
   const [deleting, setDeleting] = useState(false)
   const [feedback, setFeedback] = useState('')
 
+  async function handlePedirRelatorio(veiculoId: string) {
+    setReportFeedback('')
+    setRequestingReportId(veiculoId)
+    const { error } = await solicitarAcessoRelatorio(profile, veiculoId)
+    setRequestingReportId(null)
+    if (error) {
+      setReportFeedback(error.message)
+    } else {
+      setReportFeedback('Pedido de relatório enviado. Aguardando aprovação do gestor.')
+    }
+  }
+
   const loadVeiculos = useCallback(async () => {
     setLoading(true)
     const { data } = await getVeiculos({
       search: search || undefined,
       status: statusFilter || undefined,
       empresaId: filterEmpresaId,
-    })
+    }, profile)
     if (data) setVeiculos(data)
     setLoading(false)
-  }, [search, statusFilter, filterEmpresaId])
+  }, [search, statusFilter, filterEmpresaId, profile])
 
   useEffect(() => {
     const timeout = setTimeout(loadVeiculos, 300)
@@ -47,11 +73,11 @@ export function VehiclesPage() {
     setFeedback('')
     setSeeding(true)
 
-    const { inserted, skipped, maintenancesInserted, error } = await seedTestVeiculos(filterEmpresaId)
+    const { inserted, skipped, maintenancesInserted, error } = await seedTestVeiculos(filterEmpresaId, profile)
     setSeeding(false)
 
     if (error) {
-      setFeedback(`Erro ao popular dados: ${error.message}`)
+      setFeedback(`Erro ao popular dados: ${formatErrorMessage(error)}`)
       return
     }
 
@@ -79,7 +105,7 @@ export function VehiclesPage() {
     setFeedback('')
     setDeleting(true)
 
-    const { error } = await deleteAllVeiculos(filterEmpresaId)
+    const { error } = await deleteAllVeiculos(filterEmpresaId, profile)
     setDeleting(false)
 
     if (error) {
@@ -180,6 +206,10 @@ export function VehiclesPage() {
           </div>
         )}
 
+        {reportFeedback && (
+          <p className="rounded-lg bg-action/10 px-3 py-2 text-sm text-action">{reportFeedback}</p>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
@@ -195,12 +225,14 @@ export function VehiclesPage() {
           </Card>
         ) : (
           <div className="space-y-2">
-            {veiculos.map(v => (
+            {veiculos.map(v => {
+              const fotoSrc = safeHttpsUrl(v.foto_url)
+              return (
               <Card key={v.id} className="flex items-center gap-4">
                 <Link to={`/veiculos/${v.id}`} className="flex min-w-0 flex-1 items-center gap-4">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                    {v.foto_url ? (
-                      <img src={v.foto_url} alt={v.modelo} className="h-full w-full rounded-lg object-cover" />
+                    {fotoSrc ? (
+                      <img src={fotoSrc} alt={v.modelo} className="h-full w-full rounded-lg object-cover" />
                     ) : (
                       <Car className="h-6 w-6 text-gray-400" />
                     )}
@@ -213,7 +245,7 @@ export function VehiclesPage() {
                       )}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {v.modelo} · {formatVehicleSubtitle(v.marca, v.ano_modelo ?? v.ano, v.ano_carroceria)}
+                      {getVeiculoModelo(v)} · {formatVehicleSubtitle(getVeiculoMarca(v), v.ano_modelo ?? v.ano ?? 0, v.ano_carroceria)}
                     </p>
                   </div>
                 </Link>
@@ -227,9 +259,20 @@ export function VehiclesPage() {
                       Reservar/Alugar
                     </Link>
                   )}
+                  {canRequestReportAccess && (
+                    <button
+                      type="button"
+                      disabled={requestingReportId === v.id}
+                      onClick={() => handlePedirRelatorio(v.id)}
+                      className="rounded-lg border border-action px-3 py-1.5 text-xs font-medium text-action hover:bg-action/5 disabled:opacity-50"
+                    >
+                      {requestingReportId === v.id ? 'Enviando...' : 'Pedir Relatório'}
+                    </button>
+                  )}
                 </div>
               </Card>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

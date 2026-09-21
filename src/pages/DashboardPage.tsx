@@ -14,9 +14,11 @@ import {
 } from '@/services/reports'
 import type { EmpresaSummary, MaintenanceDashboard } from '@/services/reports'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
+import { useAuth } from '@/contexts/AuthContext'
 import { useTenant } from '@/contexts/TenantContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { formatCurrency } from '@/lib/maintenanceStatus'
+import { getManutencaoData } from '@/lib/dbCompat'
 import type { Manutencao } from '@/types/database'
 
 function daysUntil(dateStr: string) {
@@ -48,8 +50,9 @@ function EmpresaSummaryTable({ rows }: { rows: EmpresaSummary[] }) {
 }
 
 export function DashboardPage() {
+  const { profile } = useAuth()
   const { filterEmpresaId, isViewingAll, empresas, selectedEmpresaId } = useTenant()
-  const { canViewGlobalFinancialMetrics, isMotorista, canViewGlobalAlerts } = usePermissions()
+  const { canViewGlobalFinancialMetrics, isMotorista, canViewGlobalAlerts, canViewMaintenance } = usePermissions()
   const [summary, setSummary] = useState({ ativos: 0, emManutencao: 0, parados: 0, total: 0 })
   const [alertasCount, setAlertasCount] = useState(0)
   const [proximas, setProximas] = useState<Manutencao[]>([])
@@ -65,15 +68,15 @@ export function DashboardPage() {
     const tenant = { empresaId: filterEmpresaId }
 
     const requests: Promise<unknown>[] = [
-      getFleetSummary(tenant),
-      canViewGlobalAlerts ? getAlertasCount(tenant) : Promise.resolve({ count: 0 }),
-      getProximasManutencoes(5, tenant),
-      isMotorista ? Promise.resolve({ data: null }) : getMaintenanceDashboard(tenant),
-      canViewGlobalFinancialMetrics ? getFinancialReport(tenant) : Promise.resolve({ data: null }),
+      getFleetSummary(tenant, profile),
+      canViewGlobalAlerts ? getAlertasCount(tenant, profile) : Promise.resolve({ count: 0 }),
+      canViewMaintenance ? getProximasManutencoes(5, tenant, profile) : Promise.resolve({ data: [] }),
+      isMotorista ? Promise.resolve({ data: null }) : getMaintenanceDashboard(tenant, profile),
+      canViewGlobalFinancialMetrics ? getFinancialReport(tenant, profile) : Promise.resolve({ data: null }),
     ]
 
     if (isViewingAll) {
-      requests.push(getEmpresaSummaries())
+      requests.push(getEmpresaSummaries(profile))
     }
 
     const results = await Promise.all(requests)
@@ -101,12 +104,18 @@ export function DashboardPage() {
     }
 
     setLoading(false)
-  }, [filterEmpresaId, isViewingAll, canViewGlobalFinancialMetrics, isMotorista, canViewGlobalAlerts])
+  }, [filterEmpresaId, isViewingAll, canViewGlobalFinancialMetrics, isMotorista, canViewGlobalAlerts, canViewMaintenance, profile])
 
   useEffect(() => {
+    setSummary({ ativos: 0, emManutencao: 0, parados: 0, total: 0 })
+    setAlertasCount(0)
+    setProximas([])
+    setDashboard(null)
+    setTotalGeral(0)
+    setEmpresaSummaries([])
     setLoading(true)
     load()
-  }, [load])
+  }, [load, profile?.id])
 
   useDataRefresh(() => {
     setLoading(true)
@@ -167,6 +176,7 @@ export function DashboardPage() {
 
         {isViewingAll && <EmpresaSummaryTable rows={empresaSummaries} />}
 
+        {canViewMaintenance && (
         <section>
           <h2 className="mb-3 text-base font-semibold text-gray-900">Próximas manutenções</h2>
           {proximas.length === 0 ? (
@@ -176,7 +186,7 @@ export function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {proximas.map(m => {
-                const days = daysUntil(m.data_hora)
+                const days = daysUntil(getManutencaoData(m))
                 const vehicleName = m.veiculos
                   ? `${m.veiculos.modelo} - ${m.veiculos.placa}`
                   : 'Veículo'
@@ -188,7 +198,7 @@ export function DashboardPage() {
                         <p className="font-medium text-gray-900">{vehicleName}</p>
                         <p className="text-sm text-gray-500">{m.descricao}</p>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {new Date(m.data_hora).toLocaleDateString('pt-BR')}
+                          {new Date(getManutencaoData(m)).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -203,6 +213,7 @@ export function DashboardPage() {
             </div>
           )}
         </section>
+        )}
       </div>
     </div>
   )

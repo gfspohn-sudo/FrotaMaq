@@ -36,6 +36,7 @@ describe('PermissionService — integração com entidades Usuario', () => {
     expect(vm.canViewGlobalFinancialMetrics).toBe(false)
     expect(vm.canRequestReportAccess).toBe(true)
     expect(vm.canOpenReportDirectly).toBe(false)
+    expect(vm.canViewMaintenance).toBe(true)
   })
 
   it('expõe permissões corretas para Motorista (somente leitura)', () => {
@@ -51,6 +52,7 @@ describe('PermissionService — integração com entidades Usuario', () => {
     expect(vm.canViewGeneralHistory).toBe(false)
     expect(vm.canViewGlobalAlerts).toBe(false)
     expect(vm.canViewScopedReports).toBe(true)
+    expect(vm.canViewMaintenance).toBe(false)
   })
 
   it('bloqueia métricas financeiras globais para Motorista e Mecânico', () => {
@@ -82,12 +84,12 @@ describe('PermissionService — integração com entidades Usuario', () => {
       id: '5',
       nome: 'Gestor',
       email: 'g@test.com',
-      perfil: 'gerente',
+      perfil: 'gestor',
       empresa_id: 'emp-1',
       created_at: '2026-01-01T00:00:00.000Z',
     })
 
-    expect(usuario.perfil).toBe('gerente')
+    expect(usuario.perfil).toBe('gestor')
     expect(usuario.podeGerenciarVeiculos()).toBe(true)
   })
 })

@@ -7,8 +7,9 @@ import {
   estimateMockCount,
 } from '@/lib/mockFleetData'
 import { notifyDataRefresh } from '@/lib/dataRefresh'
-import { getEmpresas } from '@/services/empresas'
-import type { Veiculo } from '@/types/database'
+import { toError } from '@/lib/formatError'
+import { VeiculoMapper } from '@/infrastructure/mappers/VeiculoMapper'
+import { ManutencaoMapper } from '@/infrastructure/mappers/ManutencaoMapper'
 import type { NovaManutencao } from '@/types/database'
 
 export interface SeedMockFleetResult {
@@ -19,25 +20,40 @@ export interface SeedMockFleetResult {
   error: Error | null
 }
 
-async function getMockVeiculos(): Promise<Veiculo[]> {
+interface MockVeiculoRow {
+  id: string
+  empresa_id: string | null
+  placa: string
+  quilometragem_atual?: number
+  km_atual?: number
+}
+
+function readKmAtual(veiculo: MockVeiculoRow): number {
+  return veiculo.quilometragem_atual ?? veiculo.km_atual ?? 0
+}
+
+async function getMockVeiculos(empresaId: string): Promise<MockVeiculoRow[]> {
   const placas = getMockPlacas()
   const { data, error } = await supabase
     .from('veiculos')
-    .select('*')
+    .select('id, empresa_id, placa, quilometragem_atual, km_atual')
+    .eq('empresa_id', empresaId)
     .in('placa', placas)
 
-  if (error || !data) return []
-  return data as Veiculo[]
+  if (error) throw toError(error)
+  return (data ?? []) as MockVeiculoRow[]
 }
 
 async function deleteMockManutencoes(veiculoIds: string[]) {
   if (veiculoIds.length === 0) return
 
-  await supabase
+  const { error } = await supabase
     .from('manutencoes')
     .delete()
     .in('veiculo_id', veiculoIds)
     .like('descricao', `${MOCK_PREFIX}%`)
+
+  if (error) throw toError(error)
 }
 
 async function insertManutencoesBatch(records: NovaManutencao[]) {
@@ -45,32 +61,16 @@ async function insertManutencoesBatch(records: NovaManutencao[]) {
   let inserted = 0
 
   for (let i = 0; i < records.length; i += BATCH) {
-    const chunk = records.slice(i, i + BATCH)
-    const { error } = await supabase.from('manutencoes').insert(
-      chunk.map(r => ({ ...r, valor: r.valor ?? 0 })),
-    )
-    if (error) return { inserted, error }
+    const chunk = records.slice(i, i + BATCH).map(ManutencaoMapper.toDbPayload)
+    const { error } = await supabase.from('manutencoes').insert(chunk)
+    if (error) throw toError(error)
     inserted += chunk.length
   }
 
-  return { inserted, error: null }
+  return inserted
 }
 
-function resolveEmpresaForIndex(
-  index: number,
-  preferredEmpresaId: string | undefined,
-  empresa1Id: string | undefined,
-  empresa2Id: string | undefined,
-  fallbackId: string,
-): string {
-  if (preferredEmpresaId) return preferredEmpresaId
-  if (empresa1Id && empresa2Id) {
-    return index % 2 === 0 ? empresa1Id : empresa2Id
-  }
-  return empresa1Id ?? empresa2Id ?? fallbackId
-}
-
-export async function seedMockFleet(preferredEmpresaId?: string): Promise<SeedMockFleetResult> {
+export async function seedMockFleet(empresaId: string): Promise<SeedMockFleetResult> {
   const result: SeedMockFleetResult = {
     vehiclesInserted: 0,
     vehiclesSkipped: 0,
@@ -79,79 +79,60 @@ export async function seedMockFleet(preferredEmpresaId?: string): Promise<SeedMo
     error: null,
   }
 
-  const { data: empresas, error: empresasError } = await getEmpresas()
-  if (empresasError || !empresas?.length) {
-    result.error = new Error(
-      'Tabela empresas não encontrada. Execute supabase/seed_multi_tenant_demo.sql no Supabase.',
-    )
+  if (!empresaId) {
+    result.error = new Error('Selecione uma empresa antes de popular veículos de teste.')
     return result
   }
 
-  const empresa1 = empresas.find(e => e.slug === 'empresa-1') ?? empresas[0]
-  const empresa2 = empresas.find(e => e.slug === 'empresa-2') ?? empresas[1] ?? empresas[0]
-  const fallbackId = preferredEmpresaId ?? empresa1.id
+  try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('veiculos')
+      .select('placa')
+      .eq('empresa_id', empresaId)
+      .in('placa', getMockPlacas())
 
-  const { data: existing, error: fetchError } = await supabase
-    .from('veiculos')
-    .select('placa')
-    .in('placa', getMockPlacas())
+    if (fetchError) throw toError(fetchError)
 
-  if (fetchError) {
-    result.error = fetchError
-    return result
-  }
+    const existingPlacas = new Set(existing?.map(v => v.placa) ?? [])
+    const toInsert = MOCK_VEICULOS
+      .filter(v => !existingPlacas.has(v.placa))
+      .map(v => VeiculoMapper.toDbPayload({ ...v, empresa_id: empresaId }))
 
-  const existingPlacas = new Set(existing?.map(v => v.placa) ?? [])
-  const toInsert = MOCK_VEICULOS
-    .filter(v => !existingPlacas.has(v.placa))
-    .map((v, index) => ({
-      ...v,
-      empresa_id: resolveEmpresaForIndex(
-        index,
-        preferredEmpresaId,
-        empresa1.id,
-        empresa2?.id,
-        fallbackId,
-      ),
-    }))
-
-  if (toInsert.length > 0) {
-    const { error: insertError } = await supabase.from('veiculos').insert(toInsert)
-    if (insertError) {
-      result.error = insertError
-      return result
+    if (toInsert.length > 0) {
+      const { error: insertError } = await supabase.from('veiculos').insert(toInsert)
+      if (insertError) throw toError(insertError)
+      result.vehiclesInserted = toInsert.length
     }
-    result.vehiclesInserted = toInsert.length
+
+    result.vehiclesSkipped = MOCK_VEICULOS.length - toInsert.length
+
+    const mockVeiculos = await getMockVeiculos(empresaId)
+    if (mockVeiculos.length === 0) {
+      throw new Error('Nenhum veículo de teste encontrado após inserção.')
+    }
+
+    const veiculoIds = mockVeiculos.map(v => v.id)
+    await deleteMockManutencoes(veiculoIds)
+
+    const allManutencoes: NovaManutencao[] = []
+    mockVeiculos.forEach((veiculo, index) => {
+      const veiculoEmpresaId = veiculo.empresa_id ?? empresaId
+      allManutencoes.push(
+        ...generateMockManutencoes(
+          veiculo.id,
+          readKmAtual(veiculo),
+          index,
+          veiculoEmpresaId,
+        ),
+      )
+    })
+
+    result.maintenancesInserted = await insertManutencoesBatch(allManutencoes)
+    notifyDataRefresh()
+  } catch (err) {
+    result.error = toError(err)
   }
 
-  result.vehiclesSkipped = MOCK_VEICULOS.length - toInsert.length
-
-  const mockVeiculos = await getMockVeiculos()
-  if (mockVeiculos.length === 0) {
-    result.error = new Error('Nenhum veículo de teste encontrado após inserção.')
-    return result
-  }
-
-  const veiculoIds = mockVeiculos.map(v => v.id)
-  await deleteMockManutencoes(veiculoIds)
-
-  const allManutencoes: NovaManutencao[] = []
-  mockVeiculos.forEach((veiculo, index) => {
-    const empresaId = veiculo.empresa_id ?? fallbackId
-    allManutencoes.push(
-      ...generateMockManutencoes(veiculo.id, veiculo.km_atual, index, empresaId),
-    )
-  })
-
-  const { inserted, error: maintError } = await insertManutencoesBatch(allManutencoes)
-  result.maintenancesInserted = inserted
-
-  if (maintError) {
-    result.error = maintError
-    return result
-  }
-
-  notifyDataRefresh()
   return result
 }
 

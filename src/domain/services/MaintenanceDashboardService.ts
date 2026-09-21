@@ -1,6 +1,7 @@
 import type { Manutencao } from '@/domain/entities/Manutencao'
 import type { Veiculo } from '@/domain/entities/Veiculo'
 import type { Manutencao as ManutencaoDTO, TipoManutencao } from '@/types/database'
+import { isManutencaoAtiva, isManutencaoVencida } from '@/lib/dbCompat'
 
 export interface MaintenanceDashboardResult {
   vencidas: ManutencaoDTO[]
@@ -13,18 +14,19 @@ export interface MaintenanceDashboardResult {
 
 /** Domain Service — agregações do dashboard de manutenções. */
 export class MaintenanceDashboardService {
-  static montar(manutencoes: Manutencao[]): MaintenanceDashboardResult {
+  static montar(manutencoes: Manutencao[], veiculos: Veiculo[] = []): MaintenanceDashboardResult {
     const now = new Date()
     const in30Days = new Date()
     in30Days.setDate(in30Days.getDate() + 30)
 
-    const active = manutencoes.filter(m => ['agendada', 'em_andamento'].includes(m.status))
+    const active = manutencoes.filter(m => isManutencaoAtiva(m.status))
     const concluidasList = manutencoes.filter(m => m.status === 'concluida')
 
-    const vencidas = active.filter(m => m.calcularUrgencia() === 'overdue')
-    const emManutencao = manutencoes.filter(m => m.status === 'em_andamento')
+    const vencidas = active.filter(m => isManutencaoVencida(m.toDTO()))
+    const emManutencao = MaintenanceDashboardService.listarVeiculosEmManutencao(veiculos, manutencoes)
 
     const proximas30 = active.filter(m => {
+      if (isManutencaoVencida(m.toDTO())) return false
       const d = new Date(m.dataHora)
       return d >= now && d <= in30Days
     })
@@ -35,12 +37,16 @@ export class MaintenanceDashboardService {
 
     for (const m of manutencoes) {
       if (m.status === 'cancelada') continue
-      const urgency = m.calcularUrgencia(m.veiculoResumo?.kmAtual)
-      if (m.status === 'concluida' && urgency === 'ok') statusConcluidas++
-      else if (urgency === 'overdue') statusVencidas++
-      else if (urgency === 'warning') statusProximas++
-      else if (['agendada', 'em_andamento'].includes(m.status)) statusProximas++
-      else statusConcluidas++
+      const dto = m.toDTO()
+      if (isManutencaoVencida(dto)) {
+        statusVencidas++
+      } else if (m.status === 'concluida') {
+        statusConcluidas++
+      } else if (isManutencaoAtiva(m.status)) {
+        statusProximas++
+      } else {
+        statusConcluidas++
+      }
     }
 
     const typeCounts = manutencoes.reduce(
@@ -53,7 +59,7 @@ export class MaintenanceDashboardService {
 
     return {
       vencidas: vencidas.map(m => m.toDTO()),
-      emManutencao: emManutencao.map(m => m.toDTO()),
+      emManutencao,
       proximas30: proximas30.map(m => m.toDTO()),
       concluidas: concluidasList.slice(0, 20).map(m => m.toDTO()),
       statusCounts: {
@@ -62,6 +68,64 @@ export class MaintenanceDashboardService {
         vencidas: statusVencidas,
       },
       typeCounts,
+    }
+  }
+
+  /** Veículos em manutenção ou com OS ativa (PENDENTE / EM_ANDAMENTO). */
+  private static listarVeiculosEmManutencao(
+    veiculos: Veiculo[],
+    manutencoes: Manutencao[],
+  ): ManutencaoDTO[] {
+    const veiculoIdsComOsAtiva = new Set(
+      manutencoes.filter(m => isManutencaoAtiva(m.status)).map(m => m.veiculoId),
+    )
+
+    const veiculosRelevantes = veiculos.filter(
+      v => v.estaEmManutencao() || veiculoIdsComOsAtiva.has(v.id),
+    )
+
+    const seen = new Set<string>()
+
+    return veiculosRelevantes
+      .map(veiculo => {
+        const related = manutencoes
+          .filter(m => m.veiculoId === veiculo.id)
+          .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
+
+        const open = related.find(m => isManutencaoAtiva(m.status))
+        if (open) return open.toDTO()
+
+        const latest = related[0]
+        if (latest) return latest.toDTO()
+
+        return MaintenanceDashboardService.manutencaoPlaceholderVeiculo(veiculo)
+      })
+      .filter(item => {
+        if (seen.has(item.veiculo_id)) return false
+        seen.add(item.veiculo_id)
+        return true
+      })
+  }
+
+  private static manutencaoPlaceholderVeiculo(veiculo: Veiculo): ManutencaoDTO {
+    return {
+      id: `veiculo-em-manutencao-${veiculo.id}`,
+      empresa_id: veiculo.empresaId,
+      veiculo_id: veiculo.id,
+      descricao: 'Veículo com status em manutenção',
+      valor_total: 0,
+      data_manutencao: new Date().toISOString(),
+      tipo: 'CORRETIVA',
+      created_at: veiculo.createdAt,
+      status: 'em_andamento',
+      veiculos: {
+        placa: veiculo.placa,
+        nome_exibicao: `${veiculo.marca} ${veiculo.modelo}`.trim(),
+        modelo: veiculo.modelo,
+        marca: veiculo.marca,
+        quilometragem_atual: veiculo.kmAtual.value,
+        km_atual: veiculo.kmAtual.value,
+      },
     }
   }
 }

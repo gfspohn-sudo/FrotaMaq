@@ -33,7 +33,7 @@ export async function criarEmpresaComOnboarding(
 
   const { gestorEmail, gestorNome, gestorSenha, empresa, chaves } = result.data
 
-  const { error: gestorError } = await supabase.auth.signUp({
+  const { data: gestorAuth, error: gestorError } = await supabase.auth.signUp({
     email: gestorEmail,
     password: gestorSenha,
     options: {
@@ -44,6 +44,19 @@ export async function criarEmpresaComOnboarding(
       },
     },
   })
+
+  if (!gestorError && gestorAuth.user) {
+    await supabase.from('usuarios').upsert(
+      {
+        id: gestorAuth.user.id,
+        email: gestorEmail,
+        nome: gestorNome,
+        perfil: 'gestor',
+        empresa_id: empresa.id,
+      },
+      { onConflict: 'id' },
+    )
+  }
 
   if (gestorError) {
     return {

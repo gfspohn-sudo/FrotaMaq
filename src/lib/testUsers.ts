@@ -1,7 +1,5 @@
 import type { PerfilUsuario } from '@/types/database'
 
-export const TEST_USER_PASSWORD = '123456'
-
 export interface TestUser {
   email: string
   nome: string
@@ -44,5 +42,5 @@ export const TEST_USERS: TestUser[] = [
 export const PERFIL_OPTIONS: { value: PerfilUsuario; label: string }[] = [
   { value: 'motorista', label: 'Motorista' },
   { value: 'mecanico', label: 'Mecânico' },
-  { value: 'gerente', label: 'Gestor' },
+  { value: 'gestor', label: 'Gestor' },
 ]

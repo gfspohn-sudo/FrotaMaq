@@ -20,7 +20,12 @@ export function useNotifications() {
     setLoading(false)
   }, [profile, filterEmpresaId])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    setItems([])
+    setCount(0)
+    load()
+  }, [load, profile?.id])
+
   useDataRefresh(load)
 
   return { items, count, loading, reload: load }

@@ -1,7 +1,9 @@
 import { container } from '@/infrastructure/di/container'
 import { PeriodoFinanceiro } from '@/domain/value-objects/PeriodoFinanceiro'
+import { TenantScopeService } from '@/domain/services/TenantScopeService'
+import { UsuarioFactory } from '@/domain/entities/usuario/UsuarioFactory'
 import type { TenantQueryOptions } from '@/lib/tenantFilter'
-import type { Manutencao, TipoManutencao } from '@/types/database'
+import type { Manutencao, TipoManutencao, Usuario } from '@/types/database'
 
 export interface ReportFilters extends TenantQueryOptions {
   period?: ReturnType<typeof PeriodoFinanceiro.mesAtual>
@@ -47,26 +49,44 @@ export interface EmpresaSummary {
 }
 
 /** Facade — relatórios e dashboards via casos de uso. */
-export async function getFinancialReport(filters: ReportFilters = {}) {
+export async function getFinancialReport(filters: ReportFilters = {}, profile?: Usuario | null) {
+  const usuario = UsuarioFactory.fromProfile(profile)
+  if (!usuario.podeVisualizarMetricasFinanceirasGlobais()) {
+    return { data: null, error: new Error('Sem permissão para visualizar relatório financeiro.') }
+  }
+
+  const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile, filters)
+  if (scopeError) return { data: null, error: scopeError }
+
   return container.getFinancialReport.execute({
-    empresaId: filters.empresaId,
+    empresaId: scoped.empresaId,
     period: filters.period,
   })
 }
 
-export async function getMaintenanceDashboard(options?: TenantQueryOptions) {
-  return container.getMaintenanceDashboard.execute(options)
+export async function getMaintenanceDashboard(options?: TenantQueryOptions, profile?: Usuario | null) {
+  const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile, options)
+  if (scopeError) return { data: null, error: scopeError }
+
+  return container.getMaintenanceDashboard.execute(scoped)
 }
 
-export async function getVeiculosEmManutencao(options?: TenantQueryOptions) {
+export async function getVeiculosEmManutencao(options?: TenantQueryOptions, profile?: Usuario | null) {
+  const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile, options)
+  if (scopeError) return { data: null, error: scopeError }
+
   const { data, error } = await container.listVeiculos.execute({
-    empresaId: options?.empresaId,
+    empresaId: scoped.empresaId,
     status: 'em_manutencao',
   })
-  return { data, error }
+  const filtered = data ? TenantScopeService.filterRecordsByTenant(profile, data) : null
+  return { data: filtered, error }
 }
 
-export async function getEmpresaSummaries() {
+export async function getEmpresaSummaries(profile?: Usuario | null) {
+  if (profile && profile.perfil !== 'super_admin') {
+    return { data: null, error: new Error('Sem permissão para visão global de empresas.') }
+  }
   return container.getEmpresaSummaries.execute()
 }
 

@@ -15,8 +15,8 @@ export class EmpresaDomainService {
 
   static validarCriacao(input: NovaEmpresaInput): string | null {
     if (!input.nome.trim()) return 'Informe o nome da empresa.'
-    if (!input.slug.trim()) return 'Informe o slug da empresa.'
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.slug.trim().toLowerCase())) {
+    const slug = input.slug.trim() || EmpresaDomainService.slugify(input.nome)
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.toLowerCase())) {
       return 'Slug inválido. Use letras minúsculas, números e hífens.'
     }
     return null
@@ -65,12 +65,17 @@ export class EmpresaApplicationService {
       return { data: null, error: new Error('Sem permissão para criar empresas.') }
     }
 
-    const validationError = EmpresaDomainService.validarCriacao(input)
+    const payload: NovaEmpresaInput = {
+      ...input,
+      slug: input.slug.trim() || EmpresaDomainService.slugify(input.nome),
+    }
+
+    const validationError = EmpresaDomainService.validarCriacao(payload)
     if (validationError) {
       return { data: null, error: new Error(validationError) }
     }
 
-    const { data, error } = await this.empresaRepo.create(input)
+    const { data, error } = await this.empresaRepo.create(payload)
     return { data: data?.toDTO() ?? null, error }
   }
 

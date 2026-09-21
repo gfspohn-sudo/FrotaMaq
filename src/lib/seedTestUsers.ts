@@ -19,7 +19,7 @@ export function formatAuthError(
   }
 
   if (lower.includes('invalid login credentials') || lower.includes('invalid credentials')) {
-    return 'Credenciais inválidas. Crie gerente@frotamaq.com / mecanico@frotamaq.com / motorista@frotamaq.com (senha: 123456) no painel Supabase.'
+    return 'Credenciais inválidas. Verifique e-mail e senha.'
   }
 
   if (isFailedToFetchError({ message, name: 'TypeError' } as Error) || lower.includes('failed to fetch')) {

@@ -1,7 +1,10 @@
-export type PerfilUsuario = 'super_admin' | 'gestor' | 'gerente' | 'mecanico' | 'motorista'
+/** Tipos alinhados ao schema PostgreSQL/Supabase (FrotaMaq). */
+
+export type PerfilUsuario = 'super_admin' | 'gestor' | 'mecanico' | 'motorista'
 export type StatusVeiculo = 'em_operacao' | 'em_manutencao' | 'fora_de_operacao'
 export type TipoManutencao = 'preventiva' | 'corretiva' | 'preditiva'
-export type StatusManutencao = 'agendada' | 'em_andamento' | 'concluida' | 'cancelada'
+export type StatusManutencaoDb = 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA'
+export type StatusManutencao = 'pendente' | 'em_andamento' | 'concluida' | 'cancelada'
 export type MetodoPagamento = 'cartao' | 'pix' | 'boleto' | 'faturado' | 'dinheiro' | 'transferencia'
 export type TipoAlerta = 'vencida' | 'proxima'
 export type StatusAlerta = 'ativo' | 'resolvido'
@@ -14,7 +17,7 @@ export interface Empresa {
   id: string
   nome: string
   cnpj?: string | null
-  slug: string
+  slug?: string | null
   created_at: string
 }
 
@@ -27,19 +30,23 @@ export interface Usuario {
   created_at: string
 }
 
+/** Linha da tabela `veiculos` + campos derivados para a UI. */
 export interface Veiculo {
   id: string
   empresa_id: string | null
+  nome_exibicao: string
   placa: string
-  modelo: string
-  marca: string
-  ano: number
+  ano?: number | null
   ano_modelo?: number | null
   ano_carroceria?: number | null
-  km_atual: number
+  quilometragem_atual: number
+  km_atual?: number | null
   status: StatusVeiculo
-  foto_url: string | null
   created_at: string
+  /** Derivados no mapper a partir de `nome_exibicao` (compatibilidade UI). */
+  marca?: string
+  modelo?: string
+  foto_url?: string | null
   empresas?: Pick<Empresa, 'nome'>
 }
 
@@ -55,7 +62,7 @@ export interface Reserva {
   observacao_gestor: string | null
   created_at: string
   updated_at: string
-  veiculos?: Pick<Veiculo, 'placa' | 'modelo'>
+  veiculos?: { placa: string; nome_exibicao?: string; modelo?: string }
   usuarios?: Pick<Usuario, 'nome'>
 }
 
@@ -67,23 +74,64 @@ export interface NovaReserva {
   km_ida_volta: number
 }
 
+/** Linha da tabela `manutencoes` + aliases para a UI. */
 export interface Manutencao {
   id: string
   empresa_id: string | null
   veiculo_id: string
+  descricao: string
+  valor_total: number
+  data_manutencao: string
+  data_proxima_manutencao?: string | null
+  tipo: string
+  status: StatusManutencao
+  forma_pagamento?: string | null
+  local_manutencao?: string | null
+  responsavel?: string | null
+  created_at: string
+  /** Aliases UI (ManutencaoMapper). */
+  tipo_normalizado?: TipoManutencao
+  data_hora?: string
+  valor?: number
+  local?: string | null
+  metodo_pagamento?: MetodoPagamento | null
+  proxima_manutencao_data?: string | null
+  veiculos?: {
+    placa: string
+    nome_exibicao?: string
+    modelo?: string
+    marca?: string
+    quilometragem_atual?: number
+    km_atual?: number
+  }
+}
+
+/** Payload de criação — convertido para colunas DB no ManutencaoMapper. */
+export interface NovaManutencao {
+  veiculo_id: string
+  empresa_id?: string
   tipo: TipoManutencao
   descricao: string
   data_hora: string
-  local: string | null
-  responsavel: string | null
-  valor: number
-  metodo_pagamento: MetodoPagamento | null
-  proxima_manutencao_previsao: string | null
-  proxima_manutencao_data: string | null
-  proxima_manutencao_km: number | null
-  status: StatusManutencao
-  created_at: string
-  veiculos?: Pick<Veiculo, 'placa' | 'modelo' | 'marca' | 'km_atual'>
+  valor?: number
+  status?: StatusManutencao
+  local_manutencao?: string | null
+  responsavel?: string | null
+  forma_pagamento?: string | null
+  data_proxima_manutencao?: string | null
+}
+
+/** Payload de criação — marca/modelo convertidos para `nome_exibicao` no mapper. */
+export interface NovoVeiculo {
+  empresa_id?: string
+  placa: string
+  modelo: string
+  marca: string
+  ano: number
+  ano_modelo?: number
+  ano_carroceria?: number | null
+  km_atual: number
+  status: StatusVeiculo
 }
 
 export interface Alerta {
@@ -95,36 +143,7 @@ export interface Alerta {
   data_vencimento: string
   status: StatusAlerta
   created_at: string
-  veiculos?: Pick<Veiculo, 'placa' | 'modelo' | 'marca'>
-}
-
-export interface NovaManutencao {
-  veiculo_id: string
-  empresa_id?: string
-  tipo: TipoManutencao
-  descricao: string
-  data_hora: string
-  local?: string
-  responsavel?: string
-  valor?: number
-  metodo_pagamento?: MetodoPagamento
-  proxima_manutencao_previsao?: string
-  proxima_manutencao_data?: string
-  proxima_manutencao_km?: number
-  status?: StatusManutencao
-}
-
-export interface NovoVeiculo {
-  empresa_id?: string
-  placa: string
-  modelo: string
-  marca: string
-  ano: number
-  ano_modelo?: number
-  ano_carroceria?: number | null
-  km_atual: number
-  status: StatusVeiculo
-  foto_url?: string
+  veiculos?: { placa: string; nome_exibicao?: string; modelo?: string; marca?: string }
 }
 
 export interface ChaveConvite {
@@ -145,7 +164,7 @@ export interface SolicitacaoRelatorio {
   observacao_gestor: string | null
   created_at: string
   updated_at: string
-  veiculos?: Pick<Veiculo, 'placa' | 'modelo'>
+  veiculos?: { placa: string; nome_exibicao?: string; modelo?: string }
   usuarios?: Pick<Usuario, 'nome'>
 }
 
@@ -183,7 +202,7 @@ export const METODO_PAGAMENTO_LABELS: Record<MetodoPagamento, string> = {
 }
 
 export const STATUS_MANUTENCAO_LABELS: Record<StatusManutencao, string> = {
-  agendada: 'Agendada',
+  pendente: 'Pendente',
   em_andamento: 'Em andamento',
   concluida: 'Concluída',
   cancelada: 'Cancelada',

@@ -1,4 +1,5 @@
 import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 import type { Manutencao } from '@/types/database'
 import {
   TIPO_MANUTENCAO_LABELS,
@@ -15,11 +16,25 @@ import {
   formatDate,
 } from '@/lib/maintenanceStatus'
 import { parseMaintenanceValor } from '@/lib/financialUtils'
+import {
+  getManutencaoData,
+  getManutencaoFormaPagamento,
+  getManutencaoLocal,
+  getManutencaoProximaData,
+  getManutencaoStatus,
+  getManutencaoValor,
+  isManutencaoAtiva,
+  normalizeTipoManutencao,
+} from '@/lib/dbCompat'
+import { ManutencaoMapper } from '@/infrastructure/mappers/ManutencaoMapper'
 
 interface MaintenanceDetailModalProps {
   manutencao: Manutencao | null
   onClose: () => void
   veiculoKm?: number
+  canConcluir?: boolean
+  onConcluir?: (id: string) => Promise<void>
+  concluindo?: boolean
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -31,10 +46,31 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function MaintenanceDetailModal({ manutencao, onClose, veiculoKm }: MaintenanceDetailModalProps) {
+function formatFormaPagamento(m: Manutencao): string {
+  const raw = getManutencaoFormaPagamento(m)
+  if (!raw) return '—'
+  const normalized = ManutencaoMapper.normalizeFormaPagamento(raw)
+  if (normalized) return METODO_PAGAMENTO_LABELS[normalized]
+  return raw
+}
+
+export function MaintenanceDetailModal({
+  manutencao,
+  onClose,
+  veiculoKm,
+  canConcluir = false,
+  onConcluir,
+  concluindo = false,
+}: MaintenanceDetailModalProps) {
   if (!manutencao) return null
 
   const urgency = getMaintenanceUrgency(manutencao, veiculoKm)
+  const tipo = normalizeTipoManutencao(manutencao.tipo_normalizado ?? manutencao.tipo)
+  const dataRef = getManutencaoData(manutencao)
+  const valorRef = getManutencaoValor(manutencao)
+  const status = getManutencaoStatus(manutencao)
+  const proximaData = getManutencaoProximaData(manutencao)
+  const showConcluir = canConcluir && onConcluir && isManutencaoAtiva(status) && !manutencao.id.startsWith('veiculo-em-manutencao-')
 
   return (
     <Modal isOpen={!!manutencao} onClose={onClose} title="Detalhes da Manutenção">
@@ -48,40 +84,31 @@ export function MaintenanceDetailModal({ manutencao, onClose, veiculoKm }: Maint
 
         <div className="space-y-3 divide-y divide-gray-100">
           <DetailRow label="Veículo" value={getVehicleName(manutencao)} />
-          <DetailRow label="Tipo" value={TIPO_MANUTENCAO_LABELS[manutencao.tipo]} />
-          <DetailRow label="Data da manutenção" value={formatDateTime(manutencao.data_hora)} />
-          <DetailRow label="Status" value={STATUS_MANUTENCAO_LABELS[manutencao.status]} />
+          <DetailRow label="Tipo" value={TIPO_MANUTENCAO_LABELS[tipo]} />
+          <DetailRow label="Data da manutenção" value={formatDateTime(dataRef)} />
+          <DetailRow label="Status" value={STATUS_MANUTENCAO_LABELS[status]} />
           <DetailRow
             label="Valor Total"
-            value={formatCurrency(parseMaintenanceValor(manutencao.valor))}
+            value={formatCurrency(parseMaintenanceValor(valorRef))}
           />
-          <DetailRow label="Local / Oficina" value={manutencao.local || '—'} />
-          <DetailRow
-            label="Método de pagamento"
-            value={
-              manutencao.metodo_pagamento
-                ? METODO_PAGAMENTO_LABELS[manutencao.metodo_pagamento]
-                : '—'
-            }
-          />
+          <DetailRow label="Local / Oficina" value={getManutencaoLocal(manutencao) || '—'} />
+          <DetailRow label="Forma de pagamento" value={formatFormaPagamento(manutencao)} />
           <DetailRow label="Responsável" value={manutencao.responsavel || '—'} />
           <DetailRow
-            label="Próxima manutenção"
-            value={manutencao.proxima_manutencao_previsao || '—'}
+            label="Data da próxima manutenção"
+            value={proximaData ? formatDate(proximaData) : '—'}
           />
-          {manutencao.proxima_manutencao_data && (
-            <DetailRow
-              label="Data prevista"
-              value={formatDate(manutencao.proxima_manutencao_data)}
-            />
-          )}
-          {manutencao.proxima_manutencao_km != null && (
-            <DetailRow
-              label="Km previsto"
-              value={`${manutencao.proxima_manutencao_km.toLocaleString('pt-BR')} km`}
-            />
-          )}
         </div>
+
+        {showConcluir && (
+          <Button
+            className="w-full"
+            onClick={() => onConcluir!(manutencao.id)}
+            disabled={concluindo}
+          >
+            {concluindo ? 'Concluindo...' : 'Concluir Manutenção'}
+          </Button>
+        )}
       </div>
     </Modal>
   )

@@ -2,19 +2,20 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { MaintenanceFormModal } from '@/components/MaintenanceFormModal'
 import { MaintenanceCard } from '@/components/MaintenanceCard'
 import { MaintenanceDetailModal } from '@/components/MaintenanceDetailModal'
-import { getManutencoes, updateManutencaoStatus } from '@/services/maintenance'
+import { getManutencoes } from '@/services/maintenance'
+import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { useTenant } from '@/contexts/TenantContext'
-import type { Manutencao, StatusManutencao } from '@/types/database'
+import type { Manutencao } from '@/types/database'
 import { History } from 'lucide-react'
 
 export function MaintenancePage() {
-  const { canCreateMaintenance, canCompleteMaintenance } = usePermissions()
+  const { profile } = useAuth()
+  const { canCreateMaintenance } = usePermissions()
   const { filterEmpresaId } = useTenant()
   const [manutencoes, setManutencoes] = useState<Manutencao[]>([])
   const [showModal, setShowModal] = useState(false)
@@ -23,18 +24,13 @@ export function MaintenancePage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await getManutencoes({ empresaId: filterEmpresaId })
+    const { data } = await getManutencoes({ empresaId: filterEmpresaId }, profile)
     if (data) setManutencoes(data)
     setLoading(false)
-  }, [filterEmpresaId])
+  }, [filterEmpresaId, profile])
 
   useEffect(() => { load() }, [load])
   useDataRefresh(load)
-
-  async function handleStatusChange(id: string, status: StatusManutencao) {
-    await updateManutencaoStatus(id, status)
-    load()
-  }
 
   return (
     <div>
@@ -65,25 +61,6 @@ export function MaintenancePage() {
               key={m.id}
               manutencao={m}
               onClick={() => setSelected(m)}
-              actions={
-                <>
-                  {canCompleteMaintenance && m.status === 'agendada' && (
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="secondary" className="flex-1" onClick={() => handleStatusChange(m.id, 'em_andamento')}>
-                        Iniciar
-                      </Button>
-                      <Button size="sm" className="flex-1" onClick={() => handleStatusChange(m.id, 'concluida')}>
-                        Concluir
-                      </Button>
-                    </div>
-                  )}
-                  {canCompleteMaintenance && m.status === 'em_andamento' && (
-                    <Button size="sm" className="w-full" onClick={() => handleStatusChange(m.id, 'concluida')}>
-                      Concluir manutenção
-                    </Button>
-                  )}
-                </>
-              }
             />
           ))
         )}
@@ -100,7 +77,7 @@ export function MaintenancePage() {
       <MaintenanceDetailModal
         manutencao={selected}
         onClose={() => setSelected(null)}
-        veiculoKm={selected?.veiculos?.km_atual}
+        veiculoKm={selected?.veiculos?.quilometragem_atual ?? selected?.veiculos?.km_atual}
       />
     </div>
   )

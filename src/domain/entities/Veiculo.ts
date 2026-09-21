@@ -127,18 +127,20 @@ export class Veiculo {
   }
 
   toDTO(): VeiculoDTO {
+    const km = this.kmAtual.value
     return {
       id: this.id,
       empresa_id: this.empresaId,
+      nome_exibicao: `${this.marca} ${this.modelo}`.trim(),
       placa: this.placa,
-      modelo: this.modelo,
       marca: this.marca,
+      modelo: this.modelo,
       ano: this.anoModelo,
       ano_modelo: this.anoModelo,
       ano_carroceria: this.anoCarroceria,
-      km_atual: this.kmAtual.value,
+      quilometragem_atual: km,
+      km_atual: km,
       status: this.status,
-      foto_url: this.fotoUrl,
       created_at: this.createdAt,
     }
   }

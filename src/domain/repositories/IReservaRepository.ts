@@ -10,9 +10,9 @@ export interface ReservaListFilter extends TenantFilter {
 
 export interface IReservaRepository {
   findAll(filter?: ReservaListFilter): Promise<{ data: Reserva[] | null; error: unknown }>
-  findById(id: string): Promise<{ data: Reserva | null; error: unknown }>
+  findById(id: string, empresaId?: string): Promise<{ data: Reserva | null; error: unknown }>
   create(input: NovaReserva & { motorista_id: string; empresa_id: string }): Promise<{ data: Reserva | null; error: unknown }>
-  updateStatus(id: string, status: StatusReserva, observacaoGestor?: string | null): Promise<{ data: Reserva | null; error: unknown }>
+  updateStatus(id: string, status: StatusReserva, observacaoGestor?: string | null, empresaId?: string): Promise<{ data: Reserva | null; error: unknown }>
   findVeiculosComReservaAprovada(motoristaId: string): Promise<{ data: string[] | null; error: unknown }>
   /** Histórico de uso: reservas aprovadas ou pendentes (não rejeitadas). */
   findVeiculosEscopoMotorista(motoristaId: string): Promise<{ data: string[] | null; error: unknown }>

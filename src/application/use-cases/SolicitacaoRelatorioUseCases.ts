@@ -1,5 +1,6 @@
 import type { ISolicitacaoRelatorioRepository } from '@/domain/repositories/ISolicitacaoRelatorioRepository'
 import type { IVeiculoRepository } from '@/domain/repositories/IVeiculoRepository'
+import { TenantScopeService } from '@/domain/services/TenantScopeService'
 import { UsuarioFactory } from '@/domain/entities/usuario/UsuarioFactory'
 import type { Usuario as UsuarioProfile, StatusSolicitacaoRelatorio } from '@/types/database'
 
@@ -59,10 +60,13 @@ export class ListSolicitacoesRelatorioUseCase {
     filter?: { empresaId?: string; status?: StatusSolicitacaoRelatorio },
   ) {
     const usuario = UsuarioFactory.fromProfile(profile)
+    const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile, filter)
+    if (scopeError) return { data: null, error: scopeError }
+
     const solicitanteId = usuario.podeAprovarAcessoRelatorio() ? undefined : profile?.id
 
     return this.solicitacaoRepo.findAll({
-      empresaId: filter?.empresaId,
+      empresaId: scoped.empresaId,
       status: filter?.status,
       solicitanteId,
     })
@@ -87,6 +91,9 @@ export class AtualizarSolicitacaoRelatorioUseCase {
       return { data: null, error: new Error('Sem permissão para aprovar solicitações.') }
     }
 
-    return this.solicitacaoRepo.updateStatus(id, status, observacaoGestor)
+    const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile)
+    if (scopeError) return { data: null, error: scopeError }
+
+    return this.solicitacaoRepo.updateStatus(id, status, observacaoGestor, scoped.empresaId)
   }
 }

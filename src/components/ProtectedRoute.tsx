@@ -12,6 +12,8 @@ interface ProtectedRouteProps {
   requireScopedReports?: boolean
   requireHistory?: boolean
   requireGlobalAlerts?: boolean
+  /** Bloqueia motorista (ex.: rotas de manutenção). */
+  requireMaintenance?: boolean
 }
 
 export function ProtectedRoute({
@@ -22,6 +24,7 @@ export function ProtectedRoute({
   requireScopedReports = false,
   requireHistory = false,
   requireGlobalAlerts = false,
+  requireMaintenance = false,
 }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth()
   const location = useLocation()
@@ -55,6 +58,10 @@ export function ProtectedRoute({
   }
 
   if (requireGlobalAlerts && !usuario.podeVisualizarAlertasGlobais()) {
+    return <Navigate to="/" replace />
+  }
+
+  if (requireMaintenance && !vm.canViewMaintenance) {
     return <Navigate to="/" replace />
   }
 

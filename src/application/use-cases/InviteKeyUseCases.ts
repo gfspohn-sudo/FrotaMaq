@@ -1,5 +1,6 @@
 import type { IChaveConviteRepository } from '@/domain/repositories/IChaveConviteRepository'
 import type { IEmpresaRepository, NovaEmpresaInput } from '@/domain/repositories/IEmpresaRepository'
+import { EmpresaDomainService } from '@/application/services/EmpresaApplicationService'
 import { InviteKeyService } from '@/domain/services/InviteKeyService'
 import type { Usuario } from '@/domain/entities/usuario/Usuario'
 import type { ChaveConvite, Empresa } from '@/types/database'
@@ -65,11 +66,18 @@ export class CriarEmpresaComChavesUseCase {
       return { data: null, error: new Error('Sem permissão.') }
     }
 
-    const { data: empresa, error } = await this.empresaRepo.create({
+    const empresaInput: NovaEmpresaInput = {
       nome: input.nome,
       cnpj: input.cnpj,
-      slug: input.slug,
-    })
+      slug: input.slug.trim() || EmpresaDomainService.slugify(input.nome),
+    }
+
+    const validationError = EmpresaDomainService.validarCriacao(empresaInput)
+    if (validationError) {
+      return { data: null, error: new Error(validationError) }
+    }
+
+    const { data: empresa, error } = await this.empresaRepo.create(empresaInput)
 
     if (error || !empresa) return { data: null, error }
 

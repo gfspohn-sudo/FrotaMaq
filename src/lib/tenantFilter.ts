@@ -11,7 +11,6 @@ export interface TenantQueryOptions {
 export const PERFIL_LABELS: Record<PerfilUsuario, string> = {
   super_admin: 'Super Admin',
   gestor: 'Gestor',
-  gerente: 'Diretor/Gestor',
   mecanico: 'Mecânico',
   motorista: 'Motorista',
 }
@@ -23,7 +22,7 @@ export function isSuperAdmin(perfil?: PerfilUsuario | null) {
 
 /** @deprecated Use UsuarioFactory + métodos da entidade Usuario */
 export function isGestorRole(perfil?: PerfilUsuario | null) {
-  return perfil === 'gerente' || perfil === 'gestor'
+  return perfil === 'gestor'
 }
 
 /** @deprecated Use UsuarioFactory + métodos da entidade Usuario */

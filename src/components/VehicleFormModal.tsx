@@ -7,6 +7,8 @@ import { useTenant } from '@/contexts/TenantContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { getEmpresas } from '@/services/empresas'
+import { getVeiculoKm, getVeiculoMarca, getVeiculoModelo } from '@/lib/dbCompat'
+import { formatErrorMessage } from '@/lib/formatError'
 import type { Veiculo, StatusVeiculo, NovoVeiculo, Empresa } from '@/types/database'
 import { STATUS_VEICULO_LABELS } from '@/types/database'
 
@@ -25,7 +27,6 @@ const emptyForm = {
   ano_carroceria: '',
   km_atual: '',
   status: 'em_operacao' as StatusVeiculo,
-  foto_url: '',
   empresa_id: '',
 }
 
@@ -49,13 +50,12 @@ export function VehicleFormModal({ isOpen, onClose, onSuccess, veiculo }: Vehicl
     if (veiculo) {
       setForm({
         placa: veiculo.placa,
-        modelo: veiculo.modelo,
-        marca: veiculo.marca,
-        ano_modelo: String(veiculo.ano_modelo ?? veiculo.ano),
+        modelo: getVeiculoModelo(veiculo),
+        marca: getVeiculoMarca(veiculo),
+        ano_modelo: String(veiculo.ano_modelo ?? veiculo.ano ?? ''),
         ano_carroceria: veiculo.ano_carroceria ? String(veiculo.ano_carroceria) : '',
-        km_atual: String(veiculo.km_atual),
-        status: veiculo.status,
-        foto_url: veiculo.foto_url ?? '',
+        km_atual: String(getVeiculoKm(veiculo)),
+        status: (veiculo.status as StatusVeiculo) ?? 'em_operacao',
         empresa_id: veiculo.empresa_id ?? '',
       })
     } else {
@@ -100,18 +100,17 @@ export function VehicleFormModal({ isOpen, onClose, onSuccess, veiculo }: Vehicl
       ano_carroceria: form.ano_carroceria ? Number(form.ano_carroceria) : null,
       km_atual: Number(form.km_atual),
       status: form.status,
-      foto_url: form.foto_url.trim() || undefined,
       empresa_id: empresaId,
     }
 
     const result = isEditing && veiculo
-      ? await updateVeiculo(veiculo.id, payload)
-      : await createVeiculo(payload)
+      ? await updateVeiculo(veiculo.id, payload, profile)
+      : await createVeiculo(payload, profile)
 
     setLoading(false)
 
     if (result.error) {
-      setError(result.error.message)
+      setError(formatErrorMessage(result.error))
       return
     }
 
@@ -207,14 +206,6 @@ export function VehicleFormModal({ isOpen, onClose, onSuccess, veiculo }: Vehicl
           onChange={e => setForm(prev => ({ ...prev, status: e.target.value as StatusVeiculo }))}
           options={statusOptions}
         />
-        <Input
-          label="URL da foto (opcional)"
-          type="url"
-          placeholder="https://..."
-          value={form.foto_url}
-          onChange={e => setForm(prev => ({ ...prev, foto_url: e.target.value }))}
-        />
-
         {error && (
           <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
         )}

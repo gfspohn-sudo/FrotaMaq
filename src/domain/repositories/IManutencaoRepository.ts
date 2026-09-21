@@ -11,6 +11,6 @@ export interface IManutencaoRepository {
   findProximas(limit: number, filter?: TenantFilter): Promise<{ data: Manutencao[] | null; error: unknown }>
   findWithFinancialValue(filter?: TenantFilter): Promise<{ data: Manutencao[] | null; error: unknown }>
   create(input: NovaManutencao): Promise<{ data: Manutencao | null; error: unknown }>
-  updateStatus(id: string, status: StatusManutencao): Promise<{ data: Manutencao | null; error: unknown }>
-  update(id: string, input: Partial<NovaManutencao>): Promise<{ data: Manutencao | null; error: unknown }>
+  updateStatus(id: string, status: StatusManutencao, empresaId?: string): Promise<{ data: Manutencao | null; error: unknown }>
+  update(id: string, input: Partial<NovaManutencao>, empresaId?: string): Promise<{ data: Manutencao | null; error: unknown }>
 }

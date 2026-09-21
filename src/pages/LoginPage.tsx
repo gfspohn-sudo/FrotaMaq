@@ -6,10 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { SupabaseConfigAlert } from '@/components/SupabaseConfigAlert'
-import { TEST_USERS, TEST_USER_PASSWORD } from '@/lib/testUsers'
 import { validarChaveConvite } from '@/services/inviteKeys'
-import type { PerfilUsuario } from '@/types/database'
-import type { TestUser } from '@/lib/testUsers'
 
 type AuthMode = 'login' | 'signup'
 
@@ -28,7 +25,6 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const [quickLoading, setQuickLoading] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data, error: sessionError }) => {
@@ -120,43 +116,6 @@ export function LoginPage() {
     resetMessages()
     const { error: googleError } = await signInWithGoogle()
     if (googleError) setError(googleError)
-  }
-
-  async function handleQuickLogin(user: TestUser) {
-    resetMessages()
-    setQuickLoading(user.email)
-    setEmail(user.email)
-    setPassword(TEST_USER_PASSWORD)
-
-    try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: TEST_USER_PASSWORD,
-      })
-
-      if (signInError) {
-        console.error('Erro no Supabase:', signInError)
-        setError(formatDetailedError(signInError))
-        setQuickLoading(null)
-        return
-      }
-
-      console.log('[Supabase] Login demo OK:', data.user?.email)
-      navigate('/')
-    } catch (err) {
-      console.error('Erro no Supabase:', err)
-      setError(err instanceof Error ? err.message : 'Erro de conexão')
-    } finally {
-      setQuickLoading(null)
-    }
-  }
-
-  const quickButtonStyles: Record<PerfilUsuario, string> = {
-    super_admin: 'border-purple-400/30 bg-purple-500/5 text-purple-700 hover:bg-purple-500/10',
-    gestor: 'border-action/30 bg-action/5 text-action hover:bg-action/10',
-    gerente: 'border-action/30 bg-action/5 text-action hover:bg-action/10',
-    mecanico: 'border-warning/30 bg-warning/5 text-warning hover:bg-warning/10',
-    motorista: 'border-success/30 bg-success/5 text-success hover:bg-success/10',
   }
 
   return (
@@ -331,29 +290,6 @@ export function LoginPage() {
               </p>
             </form>
           )}
-
-          <section className="mt-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
-            <h3 className="text-sm font-semibold text-gray-800">Acesso Rápido para Testes</h3>
-            <p className="mt-1 text-xs text-gray-500">
-              Senha padrão: <strong>123456</strong>. Rode <code className="text-xs">seed_multi_tenant_demo.sql</code> no Supabase após criar os usuários no Auth.
-            </p>
-            <div className="mt-3 space-y-2">
-              {TEST_USERS.map(user => (
-                <button
-                  key={user.email}
-                  type="button"
-                  disabled={quickLoading !== null}
-                  onClick={() => handleQuickLogin(user)}
-                  className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors disabled:opacity-50 ${quickButtonStyles[user.perfil]}`}
-                >
-                  <span>{user.label}</span>
-                  <span className="text-xs opacity-70">
-                    {quickLoading === user.email ? 'Entrando...' : user.description}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
         </div>
       </div>
     </div>

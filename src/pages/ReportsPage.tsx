@@ -9,7 +9,15 @@ import { MaintenanceDetailModal } from '@/components/MaintenanceDetailModal'
 import { Select } from '@/components/ui/Input'
 import { getFinancialReport, getMaintenanceDashboard } from '@/services/reports'
 import { getVeiculoReport } from '@/services/vehicleReports'
-import { getVeiculosEscopoMotorista } from '@/services/solicitacoesRelatorio'
+import {
+  getVeiculosEscopoMotorista,
+  getSolicitacoesRelatorio,
+  aprovarSolicitacaoRelatorio,
+  rejeitarSolicitacaoRelatorio,
+} from '@/services/solicitacoesRelatorio'
+import type { SolicitacaoRelatorio } from '@/services/solicitacoesRelatorio'
+import { Button } from '@/components/ui/Button'
+import { useAuth } from '@/contexts/AuthContext'
 import { getVeiculos } from '@/services/vehicles'
 import { TIPO_MANUTENCAO_LABELS } from '@/types/database'
 import type { Manutencao, Veiculo } from '@/types/database'
@@ -18,11 +26,10 @@ import { formatCurrency } from '@/lib/maintenanceStatus'
 import { formatVehicleDisplayName } from '@/lib/vehicleDisplay'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { useTenant } from '@/contexts/TenantContext'
-import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { VehicleReportAuthorizationService } from '@/domain/services/VehicleReportAuthorizationService'
 
-type ViewMode = 'geral' | 'manutencoes' | 'custos'
+type ViewMode = 'geral' | 'manutencoes' | 'custos' | 'pedidos'
 
 const STATUS_COLORS = { concluidas: '#22c55e', proximas: '#f97316', vencidas: '#ef4444' }
 const TYPE_COLORS = ['#2563eb', '#22c55e', '#f97316']
@@ -67,7 +74,6 @@ function MotoristaScopedReports() {
   const [selectedId, setSelectedId] = useState('')
   const [nomeExibicao, setNomeExibicao] = useState('')
   const [totalGeral, setTotalGeral] = useState(0)
-  const [manutencoes, setManutencoes] = useState<Manutencao[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadingReport, setLoadingReport] = useState(false)
@@ -79,14 +85,14 @@ function MotoristaScopedReports() {
     const escopo = ids ?? []
     setEscopoIds(escopo)
 
-    const { data: allVeiculos } = await getVeiculos({ empresaId: filterEmpresaId })
+    const { data: allVeiculos } = await getVeiculos({ empresaId: filterEmpresaId }, profile)
     const filtered = VehicleReportAuthorizationService.filtrarVeiculosMotorista(allVeiculos ?? [], escopo)
     setVeiculos(filtered)
     if (filtered.length > 0 && !selectedId) {
       setSelectedId(filtered[0].id)
     }
     setLoading(false)
-  }, [profile?.id, filterEmpresaId])
+  }, [profile, filterEmpresaId])
 
   const loadReport = useCallback(async (veiculoId: string) => {
     if (!veiculoId) return
@@ -96,13 +102,11 @@ function MotoristaScopedReports() {
     setLoadingReport(false)
     if (reportError) {
       setError(reportError.message)
-      setManutencoes([])
       return
     }
     if (data) {
       setNomeExibicao(data.nomeExibicao)
       setTotalGeral(data.totalGeral)
-      setManutencoes(data.manutencoes ?? [])
     }
   }, [profile])
 
@@ -162,34 +166,70 @@ function MotoristaScopedReports() {
           <Card className="text-center">
             <p className="text-sm text-gray-500">{nomeExibicao}</p>
             <p className="mt-1 text-3xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
-            <p className="mt-1 text-xs text-gray-400">Valor total em manutenções deste veículo</p>
+            <p className="mt-1 text-xs text-gray-400">Custo acumulado do veículo</p>
           </Card>
-          <section>
-            <h2 className="mb-3 text-sm font-semibold text-gray-900">
-              Manutenções ({manutencoes.length})
-            </h2>
-            {manutencoes.length === 0 ? (
-              <Card>
-                <p className="py-4 text-center text-sm text-gray-500">Nenhuma manutenção registrada.</p>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {manutencoes.map(m => (
-                  <MaintenanceCard key={m.id} manutencao={m} />
-                ))}
-              </div>
-            )}
-          </section>
         </>
       )}
     </div>
   )
 }
 
+function PedidosRelatorioPanel({
+  solicitacoes,
+  onRefresh,
+}: {
+  solicitacoes: SolicitacaoRelatorio[]
+  onRefresh: () => void
+}) {
+  const { profile } = useAuth()
+
+  if (solicitacoes.length === 0) {
+    return (
+      <Card>
+        <p className="py-6 text-center text-sm text-gray-500">Nenhum pedido de relatório pendente.</p>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {solicitacoes.map(s => (
+        <Card key={s.id}>
+          <p className="font-medium text-gray-900">
+            {s.veiculos ? `${s.veiculos.modelo} - ${s.veiculos.placa}` : 'Veículo'}
+          </p>
+          <p className="text-xs text-gray-500">
+            {s.usuarios?.nome ? `Solicitado por ${s.usuarios.nome}` : 'Solicitação de acesso a relatório'}
+          </p>
+          <div className="mt-2 flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={() => aprovarSolicitacaoRelatorio(profile, s.id).then(onRefresh)}
+            >
+              Aprovar
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              className="flex-1"
+              onClick={() => rejeitarSolicitacaoRelatorio(profile, s.id).then(onRefresh)}
+            >
+              Rejeitar
+            </Button>
+          </div>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
 export function ReportsPage() {
+  const { profile } = useAuth()
   const { filterEmpresaId } = useTenant()
-  const { isMotorista, canViewGlobalFinancialMetrics } = usePermissions()
+  const { isMotorista, canViewGlobalFinancialMetrics, canApproveReportAccess } = usePermissions()
   const [viewMode, setViewMode] = useState<ViewMode>('geral')
+  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoRelatorio[]>([])
   const [dashboard, setDashboard] = useState<MaintenanceDashboard | null>(null)
   const [totalGeral, setTotalGeral] = useState(0)
   const [periodLabel, setPeriodLabel] = useState('Custo total do mês')
@@ -206,8 +246,11 @@ export function ReportsPage() {
     if (canViewGlobalFinancialMetrics) {
       modes.push({ key: 'custos', label: 'Custos' })
     }
+    if (canApproveReportAccess) {
+      modes.push({ key: 'pedidos', label: 'Pedidos de Relatório' })
+    }
     return modes
-  }, [canViewGlobalFinancialMetrics])
+  }, [canViewGlobalFinancialMetrics, canApproveReportAccess])
 
   const load = useCallback(async () => {
     if (isMotorista) {
@@ -216,9 +259,12 @@ export function ReportsPage() {
     }
     setLoading(true)
     const tenant = { empresaId: filterEmpresaId }
-    const [dashRes, finRes] = await Promise.all([
-      getMaintenanceDashboard(tenant),
-      canViewGlobalFinancialMetrics ? getFinancialReport(tenant) : Promise.resolve({ data: null }),
+    const [dashRes, finRes, solicitacoesRes] = await Promise.all([
+      getMaintenanceDashboard(tenant, profile),
+      canViewGlobalFinancialMetrics ? getFinancialReport(tenant, profile) : Promise.resolve({ data: null }),
+      canApproveReportAccess
+        ? getSolicitacoesRelatorio(profile, { empresaId: filterEmpresaId, status: 'PENDENTE' })
+        : Promise.resolve({ data: null }),
     ])
     if (dashRes.data) setDashboard(dashRes.data)
     if (finRes.data) {
@@ -227,8 +273,9 @@ export function ReportsPage() {
       setCostByType(finRes.data.costByType)
       setCostByVehicle(finRes.data.costByVehicle)
     }
+    if (solicitacoesRes.data) setSolicitacoes(solicitacoesRes.data)
     setLoading(false)
-  }, [filterEmpresaId, isMotorista, canViewGlobalFinancialMetrics])
+  }, [filterEmpresaId, isMotorista, canViewGlobalFinancialMetrics, canApproveReportAccess, profile])
 
   useEffect(() => { load() }, [load])
   useDataRefresh(load)
@@ -256,6 +303,7 @@ export function ReportsPage() {
 
   const showMaintenance = viewMode === 'geral' || viewMode === 'manutencoes'
   const showCosts = canViewGlobalFinancialMetrics && (viewMode === 'geral' || viewMode === 'custos')
+  const showPedidos = viewMode === 'pedidos'
 
   return (
     <div>
@@ -288,6 +336,8 @@ export function ReportsPage() {
               <div className="flex justify-center py-12">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
               </div>
+            ) : showPedidos ? (
+              <PedidosRelatorioPanel solicitacoes={solicitacoes} onRefresh={load} />
             ) : (
               <>
                 {showCosts && (
@@ -436,7 +486,11 @@ export function ReportsPage() {
       <MaintenanceDetailModal
         manutencao={selected}
         onClose={() => setSelected(null)}
-        veiculoKm={selected?.veiculos?.km_atual}
+        veiculoKm={
+          selected?.veiculos
+            ? (selected.veiculos.quilometragem_atual ?? selected.veiculos.km_atual ?? undefined)
+            : undefined
+        }
       />
     </div>
   )

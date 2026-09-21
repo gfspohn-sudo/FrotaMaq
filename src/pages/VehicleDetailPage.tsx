@@ -10,6 +10,7 @@ import { MaintenanceDetailModal } from '@/components/MaintenanceDetailModal'
 import { MaintenanceCard } from '@/components/MaintenanceCard'
 import { VehicleFormModal } from '@/components/VehicleFormModal'
 import { getVeiculoById, deleteVeiculo, updateVeiculo } from '@/services/vehicles'
+import { safeHttpsUrl } from '@/lib/safeMediaUrl'
 import { getManutencoes } from '@/services/maintenance'
 import {
   solicitarAcessoRelatorio,
@@ -26,6 +27,18 @@ import {
 } from '@/types/database'
 import { getMaintenanceUrgency, formatDate } from '@/lib/maintenanceStatus'
 import { formatVehicleDisplayName, formatVehicleSubtitle } from '@/lib/vehicleDisplay'
+import {
+  getManutencaoData,
+  getManutencaoProximaData,
+  getManutencaoStatus,
+  getVeiculoKm,
+  getVeiculoMarca,
+  getVeiculoModelo,
+  isManutencaoAtiva,
+} from '@/lib/dbCompat'
+import { useDataRefresh } from '@/hooks/useDataRefresh'
+import { downloadVehicleReportCsv } from '@/services/vehicleReportExport'
+import { Download } from 'lucide-react'
 
 type Tab = 'resumo' | 'manutencoes' | 'historico'
 
@@ -44,9 +57,9 @@ function deriveReviewItems(manutencoes: Manutencao[], kmAtual: number): ReviewIt
 
   return keywords.map(({ label, terms, icon }) => {
     const related = manutencoes.filter(m =>
-      m.status === 'concluida' &&
+      getManutencaoStatus(m) === 'concluida' &&
       (terms.some(t => m.descricao.toLowerCase().includes(t)) ||
-        terms.some(t => (m.proxima_manutencao_previsao ?? '').toLowerCase().includes(t))),
+        terms.some(t => (getManutencaoProximaData(m) ?? m.descricao).toLowerCase().includes(t))),
     )
 
     const latest = related[0]
@@ -69,6 +82,7 @@ export function VehicleDetailPage() {
     canUpdateKm,
     canOpenReportDirectly,
     canRequestReportAccess,
+    canViewMaintenance,
   } = usePermissions()
   const [reportAccessStatus, setReportAccessStatus] = useState<'none' | 'PENDENTE' | 'APROVADO' | 'REJEITADO'>('none')
   const [requestingReport, setRequestingReport] = useState(false)
@@ -116,42 +130,63 @@ export function VehicleDetailPage() {
   async function loadData() {
     if (!id) return
     setLoading(true)
-    const [veiculoRes, manutencoesRes] = await Promise.all([
-      getVeiculoById(id),
-      getManutencoes({ veiculoId: id }),
-    ])
+    const veiculoRes = await getVeiculoById(id, profile)
     if (veiculoRes.data) setVeiculo(veiculoRes.data)
-    if (manutencoesRes.data) setManutencoes(manutencoesRes.data)
+
+    if (canViewMaintenance) {
+      const manutencoesRes = await getManutencoes({ veiculoId: id }, profile)
+      if (manutencoesRes.data) setManutencoes(manutencoesRes.data)
+    } else {
+      setManutencoes([])
+    }
     await loadReportAccessStatus(id)
     setLoading(false)
   }
 
   useEffect(() => { loadData() }, [id])
+  useDataRefresh(loadData)
+
+  const canViewMaintenanceDetails =
+    !canRequestReportAccess || reportAccessStatus === 'APROVADO'
+
+  const showMaintenanceTabs = canViewMaintenance && (!canRequestReportAccess || reportAccessStatus === 'APROVADO')
+
+  function handleSelectMaintenance(m: Manutencao) {
+    if (!canViewMaintenanceDetails) return
+    setSelectedMaintenance(m)
+  }
+
+  function handleDownloadReport() {
+    if (!veiculo || !canViewMaintenanceDetails) return
+    downloadVehicleReportCsv(veiculo, manutencoes)
+  }
 
   const ativas = useMemo(
-    () => manutencoes.filter(m => ['agendada', 'em_andamento'].includes(m.status)),
+    () => manutencoes.filter(m => isManutencaoAtiva(getManutencaoStatus(m))),
     [manutencoes],
   )
 
   const historico = useMemo(
-    () => manutencoes.filter(m => m.status === 'concluida'),
+    () => manutencoes.filter(m => getManutencaoStatus(m) === 'concluida'),
     [manutencoes],
   )
 
+  const veiculoKm = veiculo ? getVeiculoKm(veiculo) : 0
+
   const proximaManutencao = ativas[0] ?? historico.find(m => {
-    const u = getMaintenanceUrgency(m, veiculo?.km_atual)
+    const u = getMaintenanceUrgency(m, veiculoKm)
     return u === 'warning' || u === 'overdue'
   })
 
   const ultimaManutencao = historico[0]
-  const reviewItems = veiculo ? deriveReviewItems(manutencoes, veiculo.km_atual) : []
+  const reviewItems = veiculo ? deriveReviewItems(manutencoes, veiculoKm) : []
 
   async function handleDelete() {
     if (!veiculo) return
     setDeleting(true)
     setError('')
 
-    const { error: deleteError } = await deleteVeiculo(veiculo.id)
+    const { error: deleteError } = await deleteVeiculo(veiculo.id, profile)
     setDeleting(false)
 
     if (deleteError) {
@@ -173,7 +208,7 @@ export function VehicleDetailPage() {
 
     setSavingKm(true)
     setError('')
-    const { error: updateError } = await updateVeiculo(veiculo.id, { km_atual: parsed })
+    const { error: updateError } = await updateVeiculo(veiculo.id, { km_atual: parsed }, profile)
     setSavingKm(false)
 
     if (updateError) {
@@ -205,8 +240,9 @@ export function VehicleDetailPage() {
   }
 
   const proximaUrgency = proximaManutencao
-    ? getMaintenanceUrgency(proximaManutencao, veiculo.km_atual)
+    ? getMaintenanceUrgency(proximaManutencao, veiculoKm)
     : null
+  const fotoSrc = safeHttpsUrl(veiculo.foto_url)
 
   return (
     <div>
@@ -217,8 +253,8 @@ export function VehicleDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-white/10">
-              {veiculo.foto_url ? (
-                <img src={veiculo.foto_url} alt={veiculo.modelo} className="h-full w-full rounded-xl object-cover" />
+              {fotoSrc ? (
+                <img src={fotoSrc} alt={veiculo.modelo} className="h-full w-full rounded-xl object-cover" />
               ) : (
                 <Car className="h-8 w-8" />
               )}
@@ -228,7 +264,7 @@ export function VehicleDetailPage() {
                 {formatVehicleDisplayName(veiculo.empresas?.nome ?? 'Frota', veiculo.placa)}
               </h1>
               <p className="text-sm text-gray-300">
-                {veiculo.modelo} · {formatVehicleSubtitle(veiculo.marca, veiculo.ano_modelo ?? veiculo.ano, veiculo.ano_carroceria)}
+                {getVeiculoModelo(veiculo)} · {formatVehicleSubtitle(getVeiculoMarca(veiculo), veiculo.ano_modelo ?? veiculo.ano ?? 0, veiculo.ano_carroceria)}
               </p>
               <div className="mt-2">
                 <StatusBadge status={veiculo.status} />
@@ -266,8 +302,12 @@ export function VehicleDetailPage() {
       <div className="flex border-b border-gray-200 bg-white">
         {([
           { key: 'resumo' as Tab, label: 'Resumo' },
-          { key: 'manutencoes' as Tab, label: 'Manutenções' },
-          { key: 'historico' as Tab, label: 'Histórico' },
+          ...(showMaintenanceTabs
+            ? [
+                { key: 'manutencoes' as Tab, label: 'Manutenções' },
+                { key: 'historico' as Tab, label: 'Histórico' },
+              ]
+            : []),
         ]).map(({ key, label }) => (
           <button
             key={key}
@@ -308,12 +348,12 @@ export function VehicleDetailPage() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-xl font-bold text-gray-900">{veiculo.km_atual.toLocaleString('pt-BR')} km</p>
+                    <p className="text-xl font-bold text-gray-900">{veiculoKm.toLocaleString('pt-BR')} km</p>
                     {canUpdateKm && (
                       <button
                         type="button"
                         onClick={() => {
-                          setKmValue(String(veiculo.km_atual))
+                          setKmValue(String(veiculoKm))
                           setEditingKm(true)
                         }}
                         className="mt-1 text-xs font-medium text-action hover:underline"
@@ -335,11 +375,17 @@ export function VehicleDetailPage() {
             )}
 
             {canRequestReportAccess && id && reportAccessStatus === 'APROVADO' && (
-              <Link to={`/veiculos/${id}/relatorio`}>
-                <Card className="text-center text-sm font-medium text-action hover:bg-action/5">
-                  Ver relatório individual (acesso aprovado)
-                </Card>
-              </Link>
+              <div className="space-y-2">
+                <Button className="w-full" onClick={handleDownloadReport}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Baixar Relatório (Excel/CSV)
+                </Button>
+                <Link to={`/veiculos/${id}/relatorio`}>
+                  <Card className="text-center text-sm font-medium text-action hover:bg-action/5">
+                    Ver relatório completo na tela
+                  </Card>
+                </Link>
+              </div>
             )}
 
             {canRequestReportAccess && id && reportAccessStatus === 'PENDENTE' && (
@@ -355,36 +401,36 @@ export function VehicleDetailPage() {
                 disabled={requestingReport}
                 onClick={handleSolicitarRelatorio}
               >
-                {requestingReport ? 'Enviando...' : 'Solicitar acesso ao relatório'}
+                {requestingReport ? 'Enviando...' : 'Pedir Relatório'}
               </Button>
             )}
 
-            {ultimaManutencao && (
+            {canViewMaintenance && ultimaManutencao && (
               <Card
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setSelectedMaintenance(ultimaManutencao)}
+                className={`${canViewMaintenanceDetails ? 'cursor-pointer hover:shadow-md' : ''} transition-shadow`}
+                onClick={canViewMaintenanceDetails ? () => handleSelectMaintenance(ultimaManutencao) : undefined}
               >
                 <p className="text-xs font-medium text-gray-500 uppercase">Última manutenção</p>
                 <p className="mt-1 font-medium text-gray-900">{ultimaManutencao.descricao}</p>
-                <p className="text-sm text-gray-500">{formatDate(ultimaManutencao.data_hora)}</p>
+                <p className="text-sm text-gray-500">{formatDate(getManutencaoData(ultimaManutencao))}</p>
               </Card>
             )}
 
-            {proximaManutencao && proximaUrgency && (
+            {canViewMaintenance && proximaManutencao && proximaUrgency && (
               <Card
-                className={`cursor-pointer hover:shadow-md transition-shadow ${URGENCY_BORDER[proximaUrgency]} ${URGENCY_BG[proximaUrgency]}`}
-                onClick={() => setSelectedMaintenance(proximaManutencao)}
+                className={`${canViewMaintenanceDetails ? 'cursor-pointer hover:shadow-md' : ''} transition-shadow ${URGENCY_BORDER[proximaUrgency]} ${URGENCY_BG[proximaUrgency]}`}
+                onClick={canViewMaintenanceDetails ? () => handleSelectMaintenance(proximaManutencao) : undefined}
               >
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs font-medium text-gray-500 uppercase">Próxima manutenção</p>
                     <p className="mt-1 font-medium text-gray-900">{proximaManutencao.descricao}</p>
                     <p className={`text-sm mt-0.5 ${URGENCY_TEXT[proximaUrgency]}`}>
-                      {formatDate(proximaManutencao.data_hora)}
+                      {formatDate(getManutencaoData(proximaManutencao))}
                     </p>
-                    {proximaManutencao.proxima_manutencao_previsao && (
+                    {getManutencaoProximaData(proximaManutencao) && (
                       <p className="text-xs text-gray-500 mt-1">
-                        {proximaManutencao.proxima_manutencao_previsao}
+                        Próxima revisão: {formatDate(getManutencaoProximaData(proximaManutencao)!)}
                       </p>
                     )}
                   </div>
@@ -395,29 +441,31 @@ export function VehicleDetailPage() {
               </Card>
             )}
 
-            <section>
-              <h2 className="mb-2 text-sm font-semibold text-gray-900">Resumo de revisões</h2>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {reviewItems.map(item => (
-                  <Card key={item.label} className={`flex items-center gap-3 ${URGENCY_BG[item.status]} ${URGENCY_BORDER[item.status]}`}>
-                    <span className={URGENCY_TEXT[item.status]}>{item.icon}</span>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                      <p className={`text-xs ${URGENCY_TEXT[item.status]}`}>
-                        {URGENCY_LABELS[item.status]}
-                      </p>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </section>
+            {canViewMaintenance && !canRequestReportAccess && (
+              <section>
+                <h2 className="mb-2 text-sm font-semibold text-gray-900">Resumo de revisões</h2>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {reviewItems.map(item => (
+                    <Card key={item.label} className={`flex items-center gap-3 ${URGENCY_BG[item.status]} ${URGENCY_BORDER[item.status]}`}>
+                      <span className={URGENCY_TEXT[item.status]}>{item.icon}</span>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                        <p className={`text-xs ${URGENCY_TEXT[item.status]}`}>
+                          {URGENCY_LABELS[item.status]}
+                        </p>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            )}
           </>
         )}
 
-        {tab === 'manutencoes' && (
+        {showMaintenanceTabs && tab === 'manutencoes' && (
           ativas.length === 0 ? (
             <Card>
-              <p className="py-6 text-center text-sm text-gray-500">Nenhuma manutenção ativa ou agendada.</p>
+              <p className="py-6 text-center text-sm text-gray-500">Nenhuma manutenção pendente ou em andamento.</p>
             </Card>
           ) : (
             <div className="space-y-3">
@@ -425,20 +473,22 @@ export function VehicleDetailPage() {
                 <MaintenanceCard
                   key={m.id}
                   manutencao={m}
-                  veiculoKm={veiculo.km_atual}
+                  veiculoKm={veiculoKm}
                   showVehicle={false}
-                  onClick={() => setSelectedMaintenance(m)}
+                  onClick={canViewMaintenanceDetails ? () => handleSelectMaintenance(m) : undefined}
+                  showFinancialDetails={canViewMaintenanceDetails}
                 />
               ))}
             </div>
           )
         )}
 
-        {tab === 'historico' && (
+        {showMaintenanceTabs && tab === 'historico' && (
           <Timeline
             items={historico}
-            veiculoKm={veiculo.km_atual}
-            onItemClick={setSelectedMaintenance}
+            veiculoKm={veiculoKm}
+            onItemClick={canViewMaintenanceDetails ? handleSelectMaintenance : undefined}
+            showFinancialDetails={canViewMaintenanceDetails}
           />
         )}
       </div>
@@ -481,11 +531,13 @@ export function VehicleDetailPage() {
         onSuccess={() => { setShowMaintenanceModal(false); loadData() }}
       />
 
-      <MaintenanceDetailModal
-        manutencao={selectedMaintenance}
-        onClose={() => setSelectedMaintenance(null)}
-        veiculoKm={veiculo.km_atual}
-      />
+      {canViewMaintenanceDetails && (
+        <MaintenanceDetailModal
+          manutencao={selectedMaintenance}
+          onClose={() => setSelectedMaintenance(null)}
+          veiculoKm={veiculoKm}
+        />
+      )}
 
       {canManageVehicles && (
         <VehicleFormModal

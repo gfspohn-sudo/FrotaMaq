@@ -9,10 +9,12 @@ export class SupabaseVeiculoRepository implements IVeiculoRepository {
     let query = supabase.from('veiculos').select('*, empresas(nome)').order('created_at', { ascending: false })
 
     if (filter?.empresaId) query = query.eq('empresa_id', filter.empresaId)
-    if (filter?.status) query = query.eq('status', filter.status)
+    if (filter?.status) {
+      query = query.in('status', VeiculoMapper.statusDbValuesForFilter(filter.status))
+    }
     if (filter?.search) {
       query = query.or(
-        `placa.ilike.%${filter.search}%,modelo.ilike.%${filter.search}%,marca.ilike.%${filter.search}%`,
+        `placa.ilike.%${filter.search}%,nome_exibicao.ilike.%${filter.search}%`,
       )
     }
 
@@ -20,8 +22,10 @@ export class SupabaseVeiculoRepository implements IVeiculoRepository {
     return { data: VeiculoMapper.toDomainList(data as VeiculoDTO[] | null), error }
   }
 
-  async findById(id: string) {
-    const { data, error } = await supabase.from('veiculos').select('*, empresas(nome)').eq('id', id).single()
+  async findById(id: string, empresaId?: string) {
+    let query = supabase.from('veiculos').select('*, empresas(nome)').eq('id', id)
+    if (empresaId) query = query.eq('empresa_id', empresaId)
+    const { data, error } = await query.single()
     return {
       data: data ? VeiculoMapper.toDomain(data as VeiculoDTO) : null,
       error,
@@ -29,12 +33,7 @@ export class SupabaseVeiculoRepository implements IVeiculoRepository {
   }
 
   async create(input: NovoVeiculo) {
-    const payload = {
-      ...input,
-      ano: input.ano_modelo ?? input.ano,
-      ano_modelo: input.ano_modelo ?? input.ano,
-      ano_carroceria: input.ano_carroceria ?? null,
-    }
+    const payload = VeiculoMapper.toDbPayload(input)
     const { data, error } = await supabase.from('veiculos').insert(payload).select('*, empresas(nome)').single()
     return {
       data: data ? VeiculoMapper.toDomain(data as VeiculoDTO) : null,
@@ -42,18 +41,21 @@ export class SupabaseVeiculoRepository implements IVeiculoRepository {
     }
   }
 
-  async update(id: string, input: Partial<NovoVeiculo>) {
-    const payload = { ...input }
-    if (input.ano_modelo != null) payload.ano = input.ano_modelo
-    const { data, error } = await supabase.from('veiculos').update(payload).eq('id', id).select('*, empresas(nome)').single()
+  async update(id: string, input: Partial<NovoVeiculo>, empresaId?: string) {
+    const payload = VeiculoMapper.toDbUpdate(input)
+    let query = supabase.from('veiculos').update(payload).eq('id', id)
+    if (empresaId) query = query.eq('empresa_id', empresaId)
+    const { data, error } = await query.select('*, empresas(nome)').single()
     return {
       data: data ? VeiculoMapper.toDomain(data as VeiculoDTO) : null,
       error,
     }
   }
 
-  async delete(id: string) {
-    const { error } = await supabase.from('veiculos').delete().eq('id', id)
+  async delete(id: string, empresaId?: string) {
+    let query = supabase.from('veiculos').delete().eq('id', id)
+    if (empresaId) query = query.eq('empresa_id', empresaId)
+    const { error } = await query
     return { error }
   }
 
@@ -61,8 +63,9 @@ export class SupabaseVeiculoRepository implements IVeiculoRepository {
     let query = supabase.from('veiculos').delete()
     if (empresaId) {
       query = query.eq('empresa_id', empresaId)
-    } else {
-      query = query.not('id', 'is', null)
+    }
+    if (!empresaId) {
+      return { error: new Error('empresa_id obrigatório para exclusão em lote.') }
     }
     const { error } = await query
     return { error }

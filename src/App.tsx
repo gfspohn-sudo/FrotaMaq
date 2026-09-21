@@ -39,8 +39,8 @@ export default function App() {
             <Route path="/veiculos/:id" element={<VehicleDetailPage />} />
             <Route path="/veiculos/:id/relatorio" element={<VehicleReportPage />} />
             <Route path="/reservas" element={<ReservasPage />} />
-            <Route path="/manutencoes" element={<MaintenancePage />} />
-            <Route path="/manutencoes/nova" element={<NewMaintenancePage />} />
+            <Route path="/manutencoes" element={<ProtectedRoute requireMaintenance><MaintenancePage /></ProtectedRoute>} />
+            <Route path="/manutencoes/nova" element={<ProtectedRoute requireMaintenance><NewMaintenancePage /></ProtectedRoute>} />
             <Route path="/historico" element={<ProtectedRoute requireHistory><MaintenanceHistoryPage /></ProtectedRoute>} />
             <Route path="/alertas" element={<ProtectedRoute requireGlobalAlerts><AlertsPage /></ProtectedRoute>} />
             <Route path="/mais" element={<MorePage />} />

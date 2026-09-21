@@ -72,6 +72,33 @@ describe('VehicleReportAuthorizationService', () => {
     expect(filtered.map(v => v.id)).toEqual(['v-1', 'v-3'])
   })
 
+  it('mecânico não vê detalhes de manutenção sem solicitação APROVADA', () => {
+    expect(
+      VehicleReportAuthorizationService.podeVerDetalhesManutencao(mecanico, 'v-1', []),
+    ).toBe(false)
+    expect(
+      VehicleReportAuthorizationService.podeVerDetalhesManutencao(mecanico, 'v-1', ['v-2']),
+    ).toBe(false)
+  })
+
+  it('mecânico vê detalhes de manutenção após solicitação APROVADA para o veículo', () => {
+    expect(
+      VehicleReportAuthorizationService.podeVerDetalhesManutencao(mecanico, 'v-1', ['v-1']),
+    ).toBe(true)
+  })
+
+  it('gestor sempre vê detalhes de manutenção', () => {
+    expect(
+      VehicleReportAuthorizationService.podeVerDetalhesManutencao(gestor, 'v-1', []),
+    ).toBe(true)
+  })
+
+  it('motorista não vê detalhes de manutenção', () => {
+    expect(
+      VehicleReportAuthorizationService.podeVerDetalhesManutencao(motorista, 'v-1', ['v-1']),
+    ).toBe(false)
+  })
+
   it('filtrarVeiculosMotorista retorna vazio quando escopo vazio', () => {
     const veiculos = [{ id: 'v-1', placa: 'ABC' }]
     expect(VehicleReportAuthorizationService.filtrarVeiculosMotorista(veiculos, [])).toEqual([])

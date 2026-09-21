@@ -28,6 +28,20 @@ export class VehicleReportAuthorizationService {
     return false
   }
 
+  /** Mecânico só abre detalhes/custos de manutenção após aprovação do gestor para o veículo. */
+  static podeVerDetalhesManutencao(
+    usuario: Usuario,
+    veiculoId: string,
+    veiculosRelatorioAprovadoMecanico: string[],
+  ): boolean {
+    if (usuario.podeAbrirRelatorioIndividualDireto()) return true
+    if (usuario.perfil === 'motorista') return false
+    if (usuario.perfil === 'mecanico') {
+      return veiculosRelatorioAprovadoMecanico.includes(veiculoId)
+    }
+    return true
+  }
+
   static filtrarVeiculosMotorista<T extends { id: string }>(
     veiculos: T[],
     veiculosEscopo: string[],

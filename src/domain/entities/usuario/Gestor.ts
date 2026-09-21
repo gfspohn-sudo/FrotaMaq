@@ -2,21 +2,17 @@ import { Usuario } from '@/domain/entities/usuario/Usuario'
 
 /** Gestor de empresa — CRUD completo na própria empresa. */
 export class Gestor extends Usuario {
-  private readonly _perfil: 'gestor' | 'gerente'
+  get perfil() {
+    return 'gestor' as const
+  }
 
   constructor(
     id: string,
     nome: string,
     email: string,
     empresaId: string | null,
-    perfil: 'gestor' | 'gerente' = 'gestor',
   ) {
     super(id, nome, email, empresaId)
-    this._perfil = perfil
-  }
-
-  get perfil() {
-    return this._perfil
   }
 
   podeVisualizarDashboard() { return true }

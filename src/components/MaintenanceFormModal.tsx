@@ -6,8 +6,9 @@ import { createManutencao } from '@/services/maintenance'
 import { getVeiculos } from '@/services/vehicles'
 import { useTenant } from '@/contexts/TenantContext'
 import { useAuth } from '@/contexts/AuthContext'
-import type { TipoManutencao, StatusManutencao, MetodoPagamento, Veiculo } from '@/types/database'
-import { TIPO_MANUTENCAO_LABELS, METODO_PAGAMENTO_LABELS } from '@/types/database'
+import { formatErrorMessage } from '@/lib/formatError'
+import type { TipoManutencao, Veiculo } from '@/types/database'
+import { TIPO_MANUTENCAO_LABELS } from '@/types/database'
 
 interface MaintenanceFormModalProps {
   isOpen: boolean
@@ -28,24 +29,17 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
     tipo: 'preventiva' as TipoManutencao,
     descricao: '',
     data_hora: '',
-    local: '',
-    responsavel: '',
     valor: '',
-    metodo_pagamento: '' as MetodoPagamento | '',
-    proxima_manutencao_previsao: '',
-    proxima_manutencao_data: '',
-    proxima_manutencao_km: '',
-    status: 'agendada' as StatusManutencao,
   })
 
   useEffect(() => {
     if (isOpen) {
-      getVeiculos({ empresaId: filterEmpresaId }).then(({ data }) => {
+      getVeiculos({ empresaId: filterEmpresaId }, profile).then(({ data }) => {
         if (data) setVeiculos(data)
       })
       if (veiculoId) setForm(prev => ({ ...prev, veiculo_id: veiculoId }))
     }
-  }, [isOpen, veiculoId, filterEmpresaId])
+  }, [isOpen, veiculoId, filterEmpresaId, profile])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -60,22 +54,13 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
       tipo: form.tipo,
       descricao: form.descricao,
       data_hora: new Date(form.data_hora).toISOString(),
-      local: form.local || undefined,
-      responsavel: form.responsavel || undefined,
       valor: form.valor ? parseFloat(form.valor) : 0,
-      metodo_pagamento: form.metodo_pagamento || undefined,
-      proxima_manutencao_previsao: form.proxima_manutencao_previsao || undefined,
-      proxima_manutencao_data: form.proxima_manutencao_data || undefined,
-      proxima_manutencao_km: form.proxima_manutencao_km
-        ? parseInt(form.proxima_manutencao_km, 10)
-        : undefined,
-      status: form.status,
-    })
+    }, profile)
 
     setLoading(false)
 
     if (createError) {
-      setError(createError.message)
+      setError(formatErrorMessage(createError))
       return
     }
 
@@ -93,7 +78,10 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
             onChange={e => setForm(prev => ({ ...prev, veiculo_id: e.target.value }))}
             options={[
               { value: '', label: 'Selecione um veículo' },
-              ...veiculos.map(v => ({ value: v.id, label: `${v.modelo} - ${v.placa}` })),
+              ...veiculos.map(v => ({
+                value: v.id,
+                label: v.nome_exibicao ?? `${v.modelo ?? ''} - ${v.placa}`.trim(),
+              })),
             ]}
             required
           />
@@ -123,20 +111,6 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
         />
 
         <Input
-          label="Local / Oficina"
-          placeholder="Oficina, endereço..."
-          value={form.local}
-          onChange={e => setForm(prev => ({ ...prev, local: e.target.value }))}
-        />
-
-        <Input
-          label="Responsável (Mecânico / Técnico / Motorista)"
-          placeholder="Nome do responsável"
-          value={form.responsavel}
-          onChange={e => setForm(prev => ({ ...prev, responsavel: e.target.value }))}
-        />
-
-        <Input
           label="Valor Total (R$)"
           type="number"
           step="0.01"
@@ -144,51 +118,6 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
           placeholder="0,00"
           value={form.valor}
           onChange={e => setForm(prev => ({ ...prev, valor: e.target.value }))}
-        />
-
-        <Select
-          label="Método de pagamento"
-          value={form.metodo_pagamento}
-          onChange={e => setForm(prev => ({ ...prev, metodo_pagamento: e.target.value as MetodoPagamento }))}
-          options={[
-            { value: '', label: 'Selecione...' },
-            ...Object.entries(METODO_PAGAMENTO_LABELS).map(([value, label]) => ({ value, label })),
-          ]}
-        />
-
-        <Input
-          label="Previsão da próxima manutenção"
-          placeholder="Ex: Troca de óleo daqui a 10.000 km ou 6 meses"
-          value={form.proxima_manutencao_previsao}
-          onChange={e => setForm(prev => ({ ...prev, proxima_manutencao_previsao: e.target.value }))}
-        />
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input
-            label="Data prevista (próxima)"
-            type="date"
-            value={form.proxima_manutencao_data}
-            onChange={e => setForm(prev => ({ ...prev, proxima_manutencao_data: e.target.value }))}
-          />
-          <Input
-            label="Km previsto (próxima)"
-            type="number"
-            min="0"
-            placeholder="Ex: 50000"
-            value={form.proxima_manutencao_km}
-            onChange={e => setForm(prev => ({ ...prev, proxima_manutencao_km: e.target.value }))}
-          />
-        </div>
-
-        <Select
-          label="Status"
-          value={form.status}
-          onChange={e => setForm(prev => ({ ...prev, status: e.target.value as StatusManutencao }))}
-          options={[
-            { value: 'agendada', label: 'Agendada' },
-            { value: 'em_andamento', label: 'Em andamento' },
-            { value: 'concluida', label: 'Concluída' },
-          ]}
         />
 
         {error && (

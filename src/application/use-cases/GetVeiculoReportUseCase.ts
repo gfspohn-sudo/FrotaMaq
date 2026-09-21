@@ -3,6 +3,7 @@ import type { IManutencaoRepository } from '@/domain/repositories/IManutencaoRep
 import type { IReservaRepository } from '@/domain/repositories/IReservaRepository'
 import type { ISolicitacaoRelatorioRepository } from '@/domain/repositories/ISolicitacaoRelatorioRepository'
 import { VehicleReportAuthorizationService } from '@/domain/services/VehicleReportAuthorizationService'
+import { TenantScopeService } from '@/domain/services/TenantScopeService'
 import { UsuarioFactory } from '@/domain/entities/usuario/UsuarioFactory'
 import { ManutencaoMapper } from '@/infrastructure/mappers/ManutencaoMapper'
 import type { Usuario as UsuarioProfile } from '@/types/database'
@@ -36,8 +37,10 @@ export class GetVeiculoReportUseCase {
 
   async execute(profile: UsuarioProfile | null, veiculoId: string) {
     const usuario = UsuarioFactory.fromProfile(profile)
+    const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile)
+    if (scopeError) return { data: null, error: scopeError }
 
-    const veiculoRes = await this.veiculoRepo.findById(veiculoId)
+    const veiculoRes = await this.veiculoRepo.findById(veiculoId, scoped.empresaId)
     if (veiculoRes.error || !veiculoRes.data) {
       return { data: null, error: veiculoRes.error ?? new Error('Veículo não encontrado.') }
     }
@@ -60,7 +63,10 @@ export class GetVeiculoReportUseCase {
       return { data: null, error: new Error('Sem permissão para visualizar relatório deste veículo.') }
     }
 
-    const { data: manutencoes, error } = await this.manutencaoRepo.findAll({ veiculoId })
+    const { data: manutencoes, error } = await this.manutencaoRepo.findAll({
+      veiculoId,
+      empresaId: scoped.empresaId ?? veiculo.empresaId ?? undefined,
+    })
     if (error || !manutencoes) return { data: null, error }
 
     const financeiras = manutencoes.filter(m => m.entraEmRelatorioFinanceiro() && m.possuiValorFinanceiro())

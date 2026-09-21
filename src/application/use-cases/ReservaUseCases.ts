@@ -1,8 +1,8 @@
 import type { IReservaRepository } from '@/domain/repositories/IReservaRepository'
 import type { IVeiculoRepository } from '@/domain/repositories/IVeiculoRepository'
-import type { IManutencaoRepository } from '@/domain/repositories/IManutencaoRepository'
 import { ReservaMapper } from '@/infrastructure/mappers/ReservaMapper'
 import { ReservaValidationService } from '@/domain/services/ReservaValidationService'
+import { TenantScopeService } from '@/domain/services/TenantScopeService'
 import { UsuarioFactory } from '@/domain/entities/usuario/UsuarioFactory'
 import type { Usuario as UsuarioProfile, NovaReserva, StatusReserva } from '@/types/database'
 
@@ -18,10 +18,13 @@ export class ListReservasUseCase {
     filter?: { empresaId?: string; status?: StatusReserva },
   ) {
     const usuario = UsuarioFactory.fromProfile(profile)
+    const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile, filter)
+    if (scopeError) return { data: null, error: scopeError }
+
     const motoristaId = usuario.podeAprovarReserva() ? undefined : profile?.id
 
     const { data, error } = await this.reservaRepo.findAll({
-      empresaId: filter?.empresaId,
+      empresaId: scoped.empresaId,
       status: filter?.status,
       motoristaId,
     })
@@ -33,16 +36,13 @@ export class ListReservasUseCase {
 export class SolicitarReservaUseCase {
   private readonly reservaRepo: IReservaRepository
   private readonly veiculoRepo: IVeiculoRepository
-  private readonly manutencaoRepo: IManutencaoRepository
 
   constructor(
     reservaRepo: IReservaRepository,
     veiculoRepo: IVeiculoRepository,
-    manutencaoRepo: IManutencaoRepository,
   ) {
     this.reservaRepo = reservaRepo
     this.veiculoRepo = veiculoRepo
-    this.manutencaoRepo = manutencaoRepo
   }
 
   async execute(profile: UsuarioProfile | null, input: NovaReserva) {
@@ -55,7 +55,7 @@ export class SolicitarReservaUseCase {
       return { data: null, error: new Error('Perfil incompleto para reserva.') }
     }
 
-    const veiculoRes = await this.veiculoRepo.findById(input.veiculo_id)
+    const veiculoRes = await this.veiculoRepo.findById(input.veiculo_id, profile.empresa_id)
     if (veiculoRes.error || !veiculoRes.data) {
       return { data: null, error: veiculoRes.error ?? new Error('Veículo não encontrado.') }
     }
@@ -65,16 +65,10 @@ export class SolicitarReservaUseCase {
       return { data: null, error: new Error('Veículo fora do seu escopo.') }
     }
 
-    const { data: manutencoes } = await this.manutencaoRepo.findAll({ veiculoId: input.veiculo_id })
-    const proximaKm = manutencoes
-      ?.filter(m => m.proximaManutencaoKm != null)
-      .map(m => m.proximaManutencaoKm!)
-      .sort((a, b) => a - b)[0] ?? null
-
     const validation = ReservaValidationService.validarQuilometragemViagem(
       veiculo.kmAtual.value,
       input.km_ida_volta,
-      proximaKm,
+      null,
     )
 
     if (!validation.ok) {
@@ -112,7 +106,10 @@ export class AtualizarStatusReservaUseCase {
       return { data: null, error: new Error('Sem permissão para aprovar/rejeitar reservas.') }
     }
 
-    const existing = await this.reservaRepo.findById(reservaId)
+    const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile)
+    if (scopeError) return { data: null, error: scopeError }
+
+    const existing = await this.reservaRepo.findById(reservaId, scoped.empresaId)
     if (existing.error || !existing.data) {
       return { data: null, error: existing.error ?? new Error('Reserva não encontrada.') }
     }
@@ -121,7 +118,7 @@ export class AtualizarStatusReservaUseCase {
       return { data: null, error: new Error('Reserva fora do seu escopo.') }
     }
 
-    const { data, error } = await this.reservaRepo.updateStatus(reservaId, status, observacaoGestor)
+    const { data, error } = await this.reservaRepo.updateStatus(reservaId, status, observacaoGestor, scoped.empresaId)
     return { data: data?.toDTO() ?? null, error }
   }
 }

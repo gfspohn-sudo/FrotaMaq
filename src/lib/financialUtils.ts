@@ -4,9 +4,8 @@ import { Money } from '@/domain/value-objects/Money'
 export const FINANCIAL_REPORT_STATUSES = [
   'concluida',
   'em_andamento',
-  'agendada',
-  'realizada',
   'pendente',
+  'realizada',
   'atrasada',
 ] as const
 
@@ -62,23 +61,24 @@ export function isTimestampInRange(
 }
 
 export function isMaintenanceInPeriod(
-  row: { data_hora?: string | null; created_at?: string | null },
+  row: { data_hora?: string | null; data_manutencao?: string | null; created_at?: string | null },
   range: Pick<MonthRange, 'startDateTime' | 'endDateTime'>,
 ): boolean {
   const periodo = PeriodoFinanceiro.fromRange(range)
-  return periodo.contemTimestamp(row.data_hora) || periodo.contemTimestamp(row.created_at)
+  const timestamp = row.data_manutencao ?? row.data_hora
+  return periodo.contemTimestamp(timestamp) || periodo.contemTimestamp(row.created_at)
 }
 
 export function parseMaintenanceValor(value: unknown): number {
   return Money.from(value).value
 }
 
-export function hasFinancialValue(row: { valor?: unknown }): boolean {
-  return Money.from(row.valor).isPositive()
+export function hasFinancialValue(row: { valor?: unknown; valor_total?: unknown }): boolean {
+  return Money.from(row.valor_total ?? row.valor).isPositive()
 }
 
-export function sumMaintenanceValues(rows: Array<{ valor?: unknown }>): number {
-  return rows.reduce((sum, row) => sum + Money.from(row.valor).value, 0)
+export function sumMaintenanceValues(rows: Array<{ valor?: unknown; valor_total?: unknown }>): number {
+  return rows.reduce((sum, row) => sum + Money.from(row.valor_total ?? row.valor).value, 0)
 }
 
 const FINANCIAL_DEBUG = import.meta.env.DEV

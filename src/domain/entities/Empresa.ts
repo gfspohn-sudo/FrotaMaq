@@ -3,7 +3,7 @@ import type { Empresa as EmpresaDTO } from '@/types/database'
 export interface EmpresaProps {
   id: string
   nome: string
-  slug: string
+  slug: string | null
   cnpj?: string | null
   createdAt: string
 }
@@ -12,7 +12,7 @@ export interface EmpresaProps {
 export class Empresa {
   readonly id: string
   readonly nome: string
-  readonly slug: string
+  readonly slug: string | null
   readonly cnpj: string | null
   readonly createdAt: string
 

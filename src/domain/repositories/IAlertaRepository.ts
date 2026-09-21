@@ -4,5 +4,5 @@ import type { TenantFilter } from '@/domain/types/enums'
 export interface IAlertaRepository {
   findActive(filter?: TenantFilter): Promise<{ data: Alerta[] | null; error: unknown }>
   countActive(filter?: TenantFilter): Promise<{ count: number; error: unknown }>
-  resolve(id: string): Promise<{ error: unknown }>
+  resolve(id: string, empresaId?: string): Promise<{ error: unknown }>
 }

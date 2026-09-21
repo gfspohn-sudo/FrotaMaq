@@ -23,7 +23,7 @@ export class SupabaseEmpresaRepository implements IEmpresaRepository {
       .insert({
         nome: input.nome.trim(),
         cnpj: input.cnpj?.trim() || null,
-        slug: input.slug.trim().toLowerCase(),
+        slug: input.slug.trim().toLowerCase().slice(0, 48),
       })
       .select('*')
       .single()
