@@ -9,7 +9,9 @@ export class SupabaseVeiculoRepository implements IVeiculoRepository {
     let query = supabase.from('veiculos').select('*, empresas(nome)').order('created_at', { ascending: false })
 
     if (filter?.empresaId) query = query.eq('empresa_id', filter.empresaId)
-    if (filter?.status) {
+    if (filter?.disponivelParaReserva) {
+      query = query.in('status', VeiculoMapper.statusDbValuesForFilter('em_operacao'))
+    } else if (filter?.status) {
       query = query.in('status', VeiculoMapper.statusDbValuesForFilter(filter.status))
     }
     if (filter?.search) {

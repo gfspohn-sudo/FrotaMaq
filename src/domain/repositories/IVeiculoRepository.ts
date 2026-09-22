@@ -5,6 +5,8 @@ import type { TenantFilter } from '@/domain/types/enums'
 export interface VeiculoListFilter extends TenantFilter {
   status?: StatusVeiculo
   search?: string
+  /** Apenas veículos em operação (disponíveis para reserva). */
+  disponivelParaReserva?: boolean
 }
 
 export interface IVeiculoRepository {

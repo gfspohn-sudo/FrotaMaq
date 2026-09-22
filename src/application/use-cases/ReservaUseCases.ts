@@ -2,6 +2,7 @@ import type { IReservaRepository } from '@/domain/repositories/IReservaRepositor
 import type { IVeiculoRepository } from '@/domain/repositories/IVeiculoRepository'
 import { ReservaMapper } from '@/infrastructure/mappers/ReservaMapper'
 import { ReservaValidationService } from '@/domain/services/ReservaValidationService'
+import { VeiculoDisponibilidadeService } from '@/domain/services/VeiculoDisponibilidadeService'
 import { TenantScopeService } from '@/domain/services/TenantScopeService'
 import { UsuarioFactory } from '@/domain/entities/usuario/UsuarioFactory'
 import type { Usuario as UsuarioProfile, NovaReserva, StatusReserva } from '@/types/database'
@@ -63,6 +64,13 @@ export class SolicitarReservaUseCase {
     const veiculo = veiculoRes.data
     if (!veiculo.pertenceAoEscopo(usuario)) {
       return { data: null, error: new Error('Veículo fora do seu escopo.') }
+    }
+
+    if (!VeiculoDisponibilidadeService.estaDisponivelParaReserva(veiculo)) {
+      return {
+        data: null,
+        error: new Error('Veículo indisponível para reserva. Selecione um veículo em operação.'),
+      }
     }
 
     const validation = ReservaValidationService.validarQuilometragemViagem(

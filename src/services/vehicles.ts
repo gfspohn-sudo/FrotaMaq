@@ -3,6 +3,7 @@ import { asServiceError } from '@/application/utils/asServiceError'
 import { notifyDataRefresh } from '@/lib/dataRefresh'
 import { seedMockFleet } from '@/services/mockSeed'
 import { TenantScopeService } from '@/domain/services/TenantScopeService'
+import { VeiculoDisponibilidadeService } from '@/domain/services/VeiculoDisponibilidadeService'
 import { UsuarioFactory } from '@/domain/entities/usuario/UsuarioFactory'
 import type { Veiculo, NovoVeiculo, StatusVeiculo, Usuario } from '@/types/database'
 import type { TenantQueryOptions } from '@/lib/tenantFilter'
@@ -10,6 +11,28 @@ import type { TenantQueryOptions } from '@/lib/tenantFilter'
 type VeiculoFilters = TenantQueryOptions & {
   status?: StatusVeiculo
   search?: string
+  /** Força listagem apenas de veículos em operação (reserva). */
+  disponivelParaReserva?: boolean
+}
+
+function buildVeiculoQueryFilter(
+  profile: Usuario | null | undefined,
+  filters?: VeiculoFilters,
+): VeiculoFilters {
+  const usuario = UsuarioFactory.fromProfile(profile)
+  const motorista = VeiculoDisponibilidadeService.motoristaDeveVerApenasDisponiveis(usuario)
+
+  if (motorista || filters?.disponivelParaReserva) {
+    return {
+      ...filters,
+      empresaId: filters?.empresaId,
+      search: filters?.search,
+      status: undefined,
+      disponivelParaReserva: true,
+    }
+  }
+
+  return filters ?? {}
 }
 
 function denyCrossTenant<T extends { empresa_id?: string | null }>(
@@ -25,13 +48,23 @@ function denyCrossTenant<T extends { empresa_id?: string | null }>(
 
 /** Facade — mantém compatibilidade com a camada de apresentação. */
 export async function getVeiculos(filters?: VeiculoFilters, profile?: Usuario | null) {
-  const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile, filters)
+  const queryFilter = buildVeiculoQueryFilter(profile, filters)
+  const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile, queryFilter)
   if (scopeError) return { data: null, error: asServiceError(scopeError) }
 
-  const result = await container.listVeiculos.execute(scoped)
-  const data = result.data
+  const result = await container.listVeiculos.execute({
+    ...queryFilter,
+    empresaId: scoped.empresaId ?? queryFilter.empresaId,
+  })
+  let data = result.data
     ? TenantScopeService.filterRecordsByTenant(profile, result.data)
     : null
+
+  const usuario = UsuarioFactory.fromProfile(profile)
+  if (data && VeiculoDisponibilidadeService.motoristaDeveVerApenasDisponiveis(usuario)) {
+    data = data.filter(v => v.status === 'em_operacao')
+  }
+
   return { data, error: asServiceError(result.error) }
 }
 
@@ -42,6 +75,19 @@ export async function getVeiculoById(id: string, profile?: Usuario | null) {
   const result = await container.getVeiculoById.execute(id, scoped.empresaId)
   const denied = denyCrossTenant(profile, result.data)
   if (denied) return { data: null, error: asServiceError(denied) }
+
+  const usuario = UsuarioFactory.fromProfile(profile)
+  if (
+    result.data
+    && VeiculoDisponibilidadeService.motoristaDeveVerApenasDisponiveis(usuario)
+    && result.data.status !== 'em_operacao'
+  ) {
+    return {
+      data: null,
+      error: asServiceError(new Error('Veículo indisponível para reserva.')),
+    }
+  }
+
   return { ...result, error: asServiceError(result.error) }
 }
 

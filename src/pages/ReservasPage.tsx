@@ -46,7 +46,16 @@ export function ReservasPage() {
       canRequestReserva ? getVeiculos({ empresaId: filterEmpresaId }, profile) : Promise.resolve({ data: null }),
     ])
     if (reservasRes.data) setReservas(reservasRes.data)
-    if (veiculosRes.data) setVeiculos(veiculosRes.data)
+    if (veiculosRes.data) {
+      setVeiculos(veiculosRes.data)
+      setForm(prev => {
+        if (prev.veiculo_id && !veiculosRes.data!.some(v => v.id === prev.veiculo_id)) {
+          setError('Veículo selecionado está indisponível para reserva.')
+          return { ...prev, veiculo_id: '' }
+        }
+        return prev
+      })
+    }
     setLoading(false)
   }, [profile, filterEmpresaId, canRequestReserva])
 
