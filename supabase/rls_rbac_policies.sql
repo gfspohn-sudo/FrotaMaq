@@ -1,5 +1,5 @@
 -- =============================================================================
--- FrotaLog — Políticas RLS por papel (RBAC)
+-- FrotaMaq — Políticas RLS por papel (RBAC)
 -- Execute no SQL Editor do Supabase APÓS schema_reset_complete.sql (ou em DB existente).
 -- Substitui políticas permissivas dev_* por controle multi-tenant por perfil.
 -- =============================================================================

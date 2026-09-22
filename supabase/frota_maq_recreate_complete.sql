@@ -1,7 +1,7 @@
 -- =============================================================================
 -- FrotaMaq — RECRIAÇÃO COMPLETA DO BANCO (CLEAN SLATE)
 -- =============================================================================
--- Execute INTEIRO no SQL Editor do Supabase (projeto FrotaMaq / FrotaLog).
+-- Execute INTEIRO no SQL Editor do Supabase (projeto FrotaMaq).
 --
 -- ATENÇÃO: Apaga TODAS as tabelas, enums, políticas RLS e dados existentes.
 -- Credencial criada ao final:

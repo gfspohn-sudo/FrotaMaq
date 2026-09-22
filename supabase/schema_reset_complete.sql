@@ -1,8 +1,8 @@
 -- =============================================================================
--- FrotaLog / FrotaMaq — RESET COMPLETO DO BANCO DE DADOS
+-- FrotaMaq — RESET COMPLETO DO BANCO DE DADOS
 -- =============================================================================
 -- ATENÇÃO: Este script APAGA todas as tabelas e dados existentes.
--- Execute INTEIRO no SQL Editor do Supabase (projeto FrotaLog).
+-- Execute INTEIRO no SQL Editor do Supabase (projeto FrotaMaq).
 --
 -- PRÉ-REQUISITO: Crie os usuários em Authentication → Users (senha: 123456):
 --   admin@frotamaq.com

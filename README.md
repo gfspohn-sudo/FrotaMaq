@@ -1,6 +1,6 @@
-# 🚛 FrotaLog — Sistema de Gestão de Frotas Multi-tenant
+# 🚛 FrotaMaq — Sistema de Gestão de Frotas e Máquinas
 
-> **🇧🇷 Português** | 🇺🇸 [English](#-frotalog---fleet-management-system)
+> **🇧🇷 Português** | 🇺🇸 [English](#-frotamaq---fleet-and-machinery-management-system)
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
@@ -9,7 +9,7 @@
 ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20RLS-3FCF8E?logo=supabase&logoColor=white)
 ![Vitest](https://img.shields.io/badge/Testes-Vitest-6E9F18?logo=vitest&logoColor=white)
 
-**FrotaLog** (também referenciado como **FrotaMaq** no backend) é uma solução web para **controle de veículos**, **agendamento de reservas**, **ordens de manutenção** e **relatórios gerenciais**, com **segurança em camadas** baseada em papéis (RBAC) e **Row Level Security (RLS)** no PostgreSQL/Supabase.
+**FrotaMaq** é uma solução web **multi-tenant** para **controle de veículos e máquinas**, **agendamento de reservas**, **ordens de manutenção** e **relatórios gerenciais**, com **segurança em camadas** baseada em papéis (RBAC) e **Row Level Security (RLS)** no PostgreSQL/Supabase.
 
 ---
 
@@ -28,7 +28,7 @@
 
 ## 🎯 Sobre o projeto
 
-O FrotaLog foi projetado para empresas que precisam gerenciar frotas de forma **isolada por tenant** (`empresa_id`), garantindo que cada organização visualize e manipule **apenas seus próprios dados**.
+O **FrotaMaq** foi projetado para empresas que precisam gerenciar frotas de forma **isolada por tenant** (`empresa_id`), garantindo que cada organização visualize e manipule **apenas seus próprios dados**.
 
 A aplicação combina uma interface moderna em React com regras de negócio no domínio, repositórios Supabase e políticas RLS no banco — reduzindo riscos de **vazamento entre empresas**, **IDOR** (Insecure Direct Object Reference), **XSS** e **escalação de privilégios**.
 
@@ -114,8 +114,8 @@ docs/security-audit/ # Relatório de auditoria de segurança
 ### 1. Clonar e instalar dependências
 
 ```bash
-git clone <url-do-repositorio>
-cd FrotaLog
+git clone https://github.com/gfspohn-sudo/FrotaMaq.git
+cd FrotaMaq
 npm install
 ```
 
@@ -206,14 +206,14 @@ O relatório cobre análise de RLS, isolamento multi-tenant, vetores IDOR/XSS e 
 ---
 
 <p align="center">
-  Desenvolvido com ❤️ para gestão inteligente de frotas.
+  Desenvolvido com ❤️ para gestão inteligente de frotas e máquinas.
 </p>
 
 ---
 
-# 🚛 FrotaLog — Fleet Management System
+# 🚛 FrotaMaq — Fleet and Machinery Management System
 
-> 🇧🇷 [Português](#-frotalog--sistema-de-gestão-de-frotas-multi-tenant) | **🇺🇸 English**
+> 🇧🇷 [Português](#-frotamaq--sistema-de-gestão-de-frotas-e-máquinas) | **🇺🇸 English**
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
@@ -222,7 +222,7 @@ O relatório cobre análise de RLS, isolamento multi-tenant, vetores IDOR/XSS e 
 ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20RLS-3FCF8E?logo=supabase&logoColor=white)
 ![Vitest](https://img.shields.io/badge/Tests-Vitest-6E9F18?logo=vitest&logoColor=white)
 
-**FrotaLog** (also referred to as **FrotaMaq** in the backend) is a web solution for **vehicle control**, **reservation scheduling**, **maintenance work orders**, and **management reports**, with **layered security** based on role-based access control (RBAC) and **Row Level Security (RLS)** on PostgreSQL/Supabase.
+**FrotaMaq** is a **multi-tenant** web solution for **vehicle and machinery control**, **reservation scheduling**, **maintenance work orders**, and **management reports**, with **layered security** based on role-based access control (RBAC) and **Row Level Security (RLS)** on PostgreSQL/Supabase.
 
 ---
 
@@ -241,7 +241,7 @@ O relatório cobre análise de RLS, isolamento multi-tenant, vetores IDOR/XSS e 
 
 ## 🎯 About
 
-FrotaLog is built for companies that need to manage fleets with **strict tenant isolation** (`empresa_id`), ensuring each organization can only view and modify **its own data**.
+**FrotaMaq** is built for companies that need to manage fleets with **strict tenant isolation** (`empresa_id`), ensuring each organization can only view and modify **its own data**.
 
 The app combines a modern React UI with domain business rules, Supabase repositories, and database RLS policies — mitigating **cross-tenant leaks**, **IDOR**, **XSS**, and **privilege escalation**.
 
@@ -327,8 +327,8 @@ docs/security-audit/ # Security audit report
 ### 1. Clone and install
 
 ```bash
-git clone <repository-url>
-cd FrotaLog
+git clone https://github.com/gfspohn-sudo/FrotaMaq.git
+cd FrotaMaq
 npm install
 ```
 
@@ -419,5 +419,5 @@ The report covers RLS analysis, multi-tenant isolation, IDOR/XSS vectors, and ha
 ---
 
 <p align="center">
-  Built with ❤️ for smart fleet management.
+  Built with ❤️ for smart fleet and machinery management.
 </p>

@@ -1,4 +1,4 @@
-# Arquitetura — FrotaLog
+# Arquitetura — FrotaMaq
 
 Estrutura em camadas (Clean Architecture + POO) dentro de `src/`.
 

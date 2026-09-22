@@ -576,7 +576,7 @@ const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Relatório de Auditoria de Segurança — FrotaLog</title>
+  <title>Relatório de Auditoria de Segurança — FrotaMaq</title>
   <style>
     :root {
       --navy: #0f172a;
@@ -720,10 +720,10 @@ const html = `<!DOCTYPE html>
 <body>
   <section class="cover">
     <p class="eyebrow">Auditoria de segurança · SPA + Supabase</p>
-    <h1>Relatório de Auditoria de Segurança — FrotaLog</h1>
+    <h1>Relatório de Auditoria de Segurança — FrotaMaq</h1>
     <p class="meta"><strong>Data:</strong> ${DATE_LABEL}<br/>
-    <strong>Projeto:</strong> FrotaLog (package.json name: frotalog)<br/>
-    <strong>Escopo:</strong> repositório completo em C:\\Users\\gabri\\Documents\\FrotaLog — código TypeScript/React, políticas SQL, seeds, CI e histórico git. Sem Docker, Helm ou Terraform no repositório.</p>
+    <strong>Projeto:</strong> FrotaMaq (package.json name: frotamaq)<br/>
+    <strong>Escopo:</strong> repositório completo em C:\\Users\\gabri\\Documents\\FrotaMaq — código TypeScript/React, políticas SQL, seeds, CI e histórico git. Sem Docker, Helm ou Terraform no repositório.</p>
     <div class="scope-box">
       <strong>Nota metodológica — mapeamento das cinco categorias à stack</strong>
       <ul>
@@ -842,7 +842,7 @@ await page.pdf({
   printBackground: true,
   displayHeaderFooter: true,
   headerTemplate: `<div style="font-size:8px; width:100%; padding: 0 18mm; color:#64748b; font-family:Segoe UI,Arial,sans-serif;">
-    Relatório de Auditoria de Segurança — FrotaLog
+    Relatório de Auditoria de Segurança — FrotaMaq
   </div>`,
   footerTemplate: `<div style="font-size:8px; width:100%; padding: 0 18mm; color:#64748b; font-family:Segoe UI,Arial,sans-serif; display:flex; justify-content:space-between;">
     <span>Confidencial · auditoria estática do repositório</span>

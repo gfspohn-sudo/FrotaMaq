@@ -1,5 +1,5 @@
 -- =============================================================================
--- SEED MULTI-TENANT DEMO — FrotaLog / FrotaMaq
+-- SEED MULTI-TENANT DEMO — FrotaMaq
 -- Execute no Supabase SQL Editor (em ordem, se necessário em etapas)
 -- =============================================================================
 --

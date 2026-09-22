@@ -133,7 +133,7 @@ export function LoginPage() {
             <Truck className="h-8 w-8" />
           </div>
           <h1 className="text-2xl font-bold">FrotaMaq</h1>
-          <p className="mt-1 text-sm text-white/80">Gestão de Frotas</p>
+          <p className="mt-1 text-sm text-white/80">Gestão de Frotas e Máquinas</p>
         </div>
 
         <div className="rounded-2xl bg-white/95 p-6 shadow-2xl backdrop-blur-md sm:p-8">

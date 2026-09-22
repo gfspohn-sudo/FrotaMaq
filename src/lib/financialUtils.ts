@@ -85,6 +85,6 @@ const FINANCIAL_DEBUG = import.meta.env.DEV
 
 export function logFinancialDebug(message: string, payload?: unknown) {
   if (!FINANCIAL_DEBUG) return
-  if (payload !== undefined) console.log(`[FrotaLog/financeiro] ${message}`, payload)
-  else console.log(`[FrotaLog/financeiro] ${message}`)
+  if (payload !== undefined) console.log(`[FrotaMaq/financeiro] ${message}`, payload)
+  else console.log(`[FrotaMaq/financeiro] ${message}`)
 }

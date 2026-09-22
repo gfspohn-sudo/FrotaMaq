@@ -2,7 +2,7 @@ import type { PerfilUsuario } from '@/types/database'
 
 export const ALL_EMPRESAS = '__all__'
 export const ALL_EMPRESAS_LABEL = 'TODAS AS EMPRESAS - Visão Geral Super Admin'
-export const TENANT_STORAGE_KEY = 'frotalog_tenant'
+export const TENANT_STORAGE_KEY = 'frotamaq_tenant'
 
 export interface TenantQueryOptions {
   empresaId?: string
