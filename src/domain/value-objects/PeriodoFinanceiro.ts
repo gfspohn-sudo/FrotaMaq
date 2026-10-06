@@ -68,6 +68,18 @@ export class PeriodoFinanceiro {
     })
   }
 
+  static fromDates(startDate: string, endDate: string, label?: string): PeriodoFinanceiro {
+    const start = new Date(`${startDate}T00:00:00`)
+    const end = new Date(`${endDate}T23:59:59.999`)
+    return new PeriodoFinanceiro({
+      startDate,
+      endDate,
+      startDateTime: start.toISOString(),
+      endDateTime: end.toISOString(),
+      label: label ?? `Custo de ${start.toLocaleDateString('pt-BR')} a ${end.toLocaleDateString('pt-BR')}`,
+    })
+  }
+
   contemTimestamp(value: string | null | undefined): boolean {
     if (!value) return false
     const ts = new Date(value).getTime()

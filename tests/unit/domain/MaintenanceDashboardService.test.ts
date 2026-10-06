@@ -9,8 +9,10 @@ describe('VeiculoMapper.normalizeStatusFromDb', () => {
     ['em_manutencao', 'em_manutencao'],
     ['MANUTENCAO', 'em_manutencao'],
     ['Em manutenção', 'em_manutencao'],
-    ['ATIVO', 'em_operacao'],
-    ['INATIVO', 'fora_de_operacao'],
+    ['ATIVO', 'disponivel'],
+    ['INATIVO', 'parado'],
+    ['DISPONIVEL', 'disponivel'],
+    ['EM_VIAGEM', 'em_viagem'],
   ])('normaliza %s para %s', (input, expected) => {
     expect(VeiculoMapper.normalizeStatusFromDb(input)).toBe(expected)
   })
@@ -20,7 +22,7 @@ describe('MaintenanceDashboardService', () => {
   it('lista veículos em manutenção pelo status do veículo', () => {
     const veiculos = [
       createVeiculo({ id: 'veh-1', status: 'em_manutencao', placa: 'TST-001' }),
-      createVeiculo({ id: 'veh-2', status: 'em_operacao', placa: 'TST-002' }),
+      createVeiculo({ id: 'veh-2', status: 'disponivel', placa: 'TST-002' }),
     ]
     const manutencoes = [
       createManutencao({ veiculoId: 'veh-1', status: 'concluida' }),
@@ -34,7 +36,7 @@ describe('MaintenanceDashboardService', () => {
 
   it('inclui veículo com OS em andamento mesmo sem status em_manutencao', () => {
     const veiculos = [
-      createVeiculo({ id: 'veh-1', status: 'em_operacao', placa: 'TST-001' }),
+      createVeiculo({ id: 'veh-1', status: 'disponivel', placa: 'TST-001' }),
     ]
     const manutencoes = [
       createManutencao({ veiculoId: 'veh-1', status: 'em_andamento' }),

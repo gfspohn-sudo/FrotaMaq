@@ -8,21 +8,21 @@ import type {
 export const MOCK_PREFIX = '[MOCK]'
 
 export const MOCK_VEICULOS: NovoVeiculo[] = [
-  { placa: 'TST-C001', modelo: 'FH 540', marca: 'Volvo', ano: 2022, km_atual: 185000, status: 'em_operacao' },
-  { placa: 'TST-C002', modelo: 'R450', marca: 'Scania', ano: 2021, km_atual: 220000, status: 'em_operacao' },
+  { placa: 'TST-C001', modelo: 'FH 540', marca: 'Volvo', ano: 2022, km_atual: 185000, status: 'disponivel' },
+  { placa: 'TST-C002', modelo: 'R450', marca: 'Scania', ano: 2021, km_atual: 220000, status: 'disponivel' },
   { placa: 'TST-C003', modelo: 'Actros 2651', marca: 'Mercedes-Benz', ano: 2020, km_atual: 310000, status: 'em_manutencao' },
-  { placa: 'TST-C004', modelo: 'Constellation 24.280', marca: 'Volkswagen', ano: 2019, km_atual: 420000, status: 'em_operacao' },
+  { placa: 'TST-C004', modelo: 'Constellation 24.280', marca: 'Volkswagen', ano: 2019, km_atual: 420000, status: 'disponivel' },
   { placa: 'TST-E001', modelo: '320 GC', marca: 'Caterpillar', ano: 2021, km_atual: 4200, status: 'em_manutencao' },
-  { placa: 'TST-E002', modelo: 'PC200-8', marca: 'Komatsu', ano: 2020, km_atual: 6800, status: 'em_operacao' },
-  { placa: 'TST-E003', modelo: 'EC220E', marca: 'Volvo CE', ano: 2022, km_atual: 3100, status: 'fora_de_operacao' },
-  { placa: 'TST-T001', modelo: '6110J', marca: 'John Deere', ano: 2023, km_atual: 890, status: 'em_operacao' },
-  { placa: 'TST-T002', modelo: 'T7.245', marca: 'New Holland', ano: 2022, km_atual: 1240, status: 'em_operacao' },
-  { placa: 'TST-T003', modelo: 'MT 7160', marca: 'Massey Ferguson', ano: 2021, km_atual: 2100, status: 'em_operacao' },
-  { placa: 'TST-U001', modelo: 'Hilux SRX', marca: 'Toyota', ano: 2023, km_atual: 45000, status: 'em_operacao' },
-  { placa: 'TST-U002', modelo: 'Ranger XLT', marca: 'Ford', ano: 2022, km_atual: 62000, status: 'em_operacao' },
+  { placa: 'TST-E002', modelo: 'PC200-8', marca: 'Komatsu', ano: 2020, km_atual: 6800, status: 'disponivel' },
+  { placa: 'TST-E003', modelo: 'EC220E', marca: 'Volvo CE', ano: 2022, km_atual: 3100, status: 'parado' },
+  { placa: 'TST-T001', modelo: '6110J', marca: 'John Deere', ano: 2023, km_atual: 890, status: 'disponivel' },
+  { placa: 'TST-T002', modelo: 'T7.245', marca: 'New Holland', ano: 2022, km_atual: 1240, status: 'disponivel' },
+  { placa: 'TST-T003', modelo: 'MT 7160', marca: 'Massey Ferguson', ano: 2021, km_atual: 2100, status: 'disponivel' },
+  { placa: 'TST-U001', modelo: 'Hilux SRX', marca: 'Toyota', ano: 2023, km_atual: 45000, status: 'disponivel' },
+  { placa: 'TST-U002', modelo: 'Ranger XLT', marca: 'Ford', ano: 2022, km_atual: 62000, status: 'disponivel' },
   { placa: 'TST-U003', modelo: 'Sprinter 415', marca: 'Mercedes-Benz', ano: 2020, km_atual: 120000, status: 'em_manutencao' },
-  { placa: 'TST-U004', modelo: 'Fiorino', marca: 'Fiat', ano: 2019, km_atual: 89000, status: 'fora_de_operacao' },
-  { placa: 'TST-U005', modelo: 'S10 LTZ', marca: 'Chevrolet', ano: 2024, km_atual: 18000, status: 'em_operacao' },
+  { placa: 'TST-U004', modelo: 'Fiorino', marca: 'Fiat', ano: 2019, km_atual: 89000, status: 'parado' },
+  { placa: 'TST-U005', modelo: 'S10 LTZ', marca: 'Chevrolet', ano: 2024, km_atual: 18000, status: 'em_viagem' },
 ]
 
 const OFICINAS = [

@@ -91,6 +91,16 @@ export function MaintenanceDetailModal({
             label="Valor Total"
             value={formatCurrency(parseMaintenanceValor(valorRef))}
           />
+          <DetailRow
+            label="Mão de obra"
+            value={formatCurrency(manutencao.valor_mao_de_obra ?? 0)}
+          />
+          <DetailRow
+            label="Peças"
+            value={formatCurrency(manutencao.valor_pecas ?? 0)}
+          />
+          <DetailRow label="Km no serviço" value={manutencao.km_atual_veiculo != null ? `${manutencao.km_atual_veiculo.toLocaleString('pt-BR')} km` : '—'} />
+          <DetailRow label="Próxima (km)" value={manutencao.proxima_manutencao_km != null ? `${manutencao.proxima_manutencao_km.toLocaleString('pt-BR')} km` : '—'} />
           <DetailRow label="Local / Oficina" value={getManutencaoLocal(manutencao) || '—'} />
           <DetailRow label="Forma de pagamento" value={formatFormaPagamento(manutencao)} />
           <DetailRow label="Responsável" value={manutencao.responsavel || '—'} />
@@ -98,7 +108,24 @@ export function MaintenanceDetailModal({
             label="Data da próxima manutenção"
             value={proximaData ? formatDate(proximaData) : '—'}
           />
+          {manutencao.observacao && (
+            <DetailRow label="Observação" value={manutencao.observacao} />
+          )}
         </div>
+
+        {(manutencao.pecas_trocadas?.length ?? 0) > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Peças trocadas</p>
+            <ul className="space-y-1 text-sm text-gray-800">
+              {manutencao.pecas_trocadas!.map((peca, i) => (
+                <li key={i} className="flex justify-between">
+                  <span>{peca.quantidade}× {peca.descricao}</span>
+                  <span>{formatCurrency(peca.quantidade * peca.valor_unitario)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {showConcluir && (
           <Button

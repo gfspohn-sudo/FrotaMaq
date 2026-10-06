@@ -7,6 +7,7 @@ import type { Manutencao, TipoManutencao, Usuario } from '@/types/database'
 
 export interface ReportFilters extends TenantQueryOptions {
   period?: ReturnType<typeof PeriodoFinanceiro.mesAtual>
+  veiculoId?: string
 }
 
 export interface CostByType {
@@ -19,12 +20,29 @@ export interface CostByVehicle {
   placa: string
   modelo: string
   total: number
+  valor_mao_de_obra?: number
+  valor_pecas?: number
+}
+
+export interface CostBreakdownItem {
+  manutencaoId: string
+  veiculoId: string
+  placa: string
+  descricao: string
+  dataHora: string
+  valorMaoDeObra: number
+  valorPecas: number
+  valorTotal: number
+  pecas: { descricao: string; quantidade: number; valor_unitario: number }[]
 }
 
 export interface FinancialReportResult {
   totalGeral: number
+  totalMaoDeObra?: number
+  totalPecas?: number
   costByType: CostByType[]
   costByVehicle: CostByVehicle[]
+  breakdown?: CostBreakdownItem[]
   periodLabel: string
   recordCount: number
   usedFallbackPeriod: boolean
@@ -61,6 +79,7 @@ export async function getFinancialReport(filters: ReportFilters = {}, profile?: 
   return container.getFinancialReport.execute({
     empresaId: scoped.empresaId,
     period: filters.period,
+    veiculoId: filters.veiculoId,
   })
 }
 

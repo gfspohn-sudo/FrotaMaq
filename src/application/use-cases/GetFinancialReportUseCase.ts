@@ -6,12 +6,16 @@ import type { CostByType, CostByVehicle } from '@/services/reports'
 
 export interface GetFinancialReportInput extends TenantFilter {
   period?: PeriodoFinanceiro
+  veiculoId?: string
 }
 
 export interface GetFinancialReportOutput {
   totalGeral: number
+  totalMaoDeObra: number
+  totalPecas: number
   costByType: CostByType[]
   costByVehicle: CostByVehicle[]
+  breakdown: FinancialReportResult['breakdown']
   periodLabel: string
   recordCount: number
   usedFallbackPeriod: boolean
@@ -35,7 +39,7 @@ export class GetFinancialReportUseCase {
     if (error || !candidates) return { data: null, error }
 
     const { periodo, rows, usedFallback } = FinancialReportService.resolverPeriodoComFallback(
-      candidates,
+      candidates.filter(m => !input.veiculoId || m.veiculoId === input.veiculoId),
       input.period,
     )
 
@@ -44,13 +48,18 @@ export class GetFinancialReportUseCase {
     return {
       data: {
         totalGeral: report.totalGeral,
+        totalMaoDeObra: report.totalMaoDeObra,
+        totalPecas: report.totalPecas,
         costByType: report.costByType,
         costByVehicle: report.costByVehicle.map(c => ({
           veiculo_id: c.veiculoId,
           placa: c.placa,
           modelo: c.modelo,
           total: c.total,
+          valor_mao_de_obra: c.valorMaoDeObra,
+          valor_pecas: c.valorPecas,
         })),
+        breakdown: report.breakdown,
         periodLabel: report.periodLabel,
         recordCount: report.recordCount,
         usedFallbackPeriod: report.usedFallbackPeriod,

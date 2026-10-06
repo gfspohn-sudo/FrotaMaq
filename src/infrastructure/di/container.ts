@@ -31,7 +31,10 @@ import {
   ListReservasUseCase,
   SolicitarReservaUseCase,
   AtualizarStatusReservaUseCase,
+  FinalizarViagemUseCase,
 } from '@/application/use-cases/ReservaUseCases'
+import { GetFleetAlertsUseCase } from '@/application/use-cases/GetFleetAlertsUseCase'
+import { GetDriverTripHistoryUseCase } from '@/application/use-cases/GetDriverTripHistoryUseCase'
 import { GetVeiculoReportUseCase } from '@/application/use-cases/GetVeiculoReportUseCase'
 import { GetNotificationsUseCase } from '@/application/use-cases/GetNotificationsUseCase'
 import {
@@ -73,7 +76,7 @@ class AppContainer {
   readonly updateVeiculo = new UpdateVeiculoUseCase(this.veiculoRepository)
   readonly deleteVeiculo = new DeleteVeiculoUseCase(this.veiculoRepository)
   readonly deleteAllVeiculos = new DeleteAllVeiculosUseCase(this.veiculoRepository)
-  readonly createManutencao = new CreateManutencaoUseCase(this.manutencaoRepository)
+  readonly createManutencao = new CreateManutencaoUseCase(this.manutencaoRepository, this.veiculoRepository)
   readonly updateManutencaoStatus = new UpdateManutencaoStatusUseCase(this.manutencaoRepository)
   readonly updateManutencao = new UpdateManutencaoUseCase(this.manutencaoRepository)
   readonly concluirManutencao = new ConcluirManutencaoUseCase(
@@ -85,7 +88,19 @@ class AppContainer {
     this.reservaRepository,
     this.veiculoRepository,
   )
-  readonly atualizarStatusReserva = new AtualizarStatusReservaUseCase(this.reservaRepository)
+  readonly atualizarStatusReserva = new AtualizarStatusReservaUseCase(
+    this.reservaRepository,
+    this.veiculoRepository,
+  )
+  readonly finalizarViagem = new FinalizarViagemUseCase(
+    this.reservaRepository,
+    this.veiculoRepository,
+  )
+  readonly getFleetAlerts = new GetFleetAlertsUseCase(
+    this.veiculoRepository,
+    this.manutencaoRepository,
+  )
+  readonly getDriverTripHistory = new GetDriverTripHistoryUseCase(this.reservaRepository)
   readonly getVeiculoReport = new GetVeiculoReportUseCase(
     this.veiculoRepository,
     this.manutencaoRepository,

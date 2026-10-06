@@ -25,7 +25,7 @@ import {
   URGENCY_TEXT,
   URGENCY_LABELS,
 } from '@/types/database'
-import { getMaintenanceUrgency, formatDate } from '@/lib/maintenanceStatus'
+import { getMaintenanceUrgency, formatDate, formatCurrency } from '@/lib/maintenanceStatus'
 import { formatVehicleDisplayName, formatVehicleSubtitle } from '@/lib/vehicleDisplay'
 import {
   getManutencaoData,
@@ -266,8 +266,12 @@ export function VehicleDetailPage() {
               <p className="text-sm text-gray-300">
                 {getVeiculoModelo(veiculo)} · {formatVehicleSubtitle(getVeiculoMarca(veiculo), veiculo.ano_modelo ?? veiculo.ano ?? 0, veiculo.ano_carroceria)}
               </p>
-              <div className="mt-2">
+              <p className="mt-1 font-mono text-lg tracking-wide text-white">{veiculo.placa}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <StatusBadge status={veiculo.status} />
+                <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs">
+                  {veiculoKm.toLocaleString('pt-BR')} km
+                </span>
               </div>
             </div>
           </div>
@@ -484,12 +488,62 @@ export function VehicleDetailPage() {
         )}
 
         {showMaintenanceTabs && tab === 'historico' && (
-          <Timeline
-            items={historico}
-            veiculoKm={veiculoKm}
-            onItemClick={canViewMaintenanceDetails ? handleSelectMaintenance : undefined}
-            showFinancialDetails={canViewMaintenanceDetails}
-          />
+          <div className="space-y-4">
+            <Card>
+              <p className="text-xs font-medium uppercase text-gray-500">Gastos acumulados</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {formatCurrency(historico.reduce((sum, m) => sum + (m.valor_total ?? m.valor ?? 0), 0))}
+              </p>
+              <p className="text-xs text-gray-500">
+                Mão de obra {formatCurrency(historico.reduce((sum, m) => sum + (m.valor_mao_de_obra ?? 0), 0))}
+                {' · '}
+                Peças {formatCurrency(historico.reduce((sum, m) => sum + (m.valor_pecas ?? 0), 0))}
+              </p>
+            </Card>
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-gray-900">Trocas de óleo</h2>
+              {historico.filter(m => /oleo|óleo|lubrific/i.test(m.descricao)).length === 0 ? (
+                <p className="text-sm text-gray-500">Nenhuma troca de óleo registrada.</p>
+              ) : (
+                historico.filter(m => /oleo|óleo|lubrific/i.test(m.descricao)).map(m => (
+                  <MaintenanceCard
+                    key={m.id}
+                    manutencao={m}
+                    veiculoKm={veiculoKm}
+                    showVehicle={false}
+                    onClick={canViewMaintenanceDetails ? () => handleSelectMaintenance(m) : undefined}
+                    showFinancialDetails={canViewMaintenanceDetails}
+                  />
+                ))
+              )}
+            </section>
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-gray-900">Substituição de peças</h2>
+              {historico.filter(m => (m.pecas_trocadas?.length ?? 0) > 0).length === 0 ? (
+                <p className="text-sm text-gray-500">Nenhuma peça discriminada.</p>
+              ) : (
+                historico.filter(m => (m.pecas_trocadas?.length ?? 0) > 0).map(m => (
+                  <Card key={m.id} className="mb-2">
+                    <p className="text-sm font-medium text-gray-900">{formatDate(getManutencaoData(m))}</p>
+                    <ul className="mt-1 text-sm text-gray-600">
+                      {m.pecas_trocadas!.map((peca, i) => (
+                        <li key={i}>
+                          {peca.quantidade}× {peca.descricao} — {formatCurrency(peca.quantidade * peca.valor_unitario)}
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                ))
+              )}
+            </section>
+            <h2 className="text-sm font-semibold text-gray-900">Todas as manutenções</h2>
+            <Timeline
+              items={historico}
+              veiculoKm={veiculoKm}
+              onItemClick={canViewMaintenanceDetails ? handleSelectMaintenance : undefined}
+              showFinancialDetails={canViewMaintenanceDetails}
+            />
+          </div>
         )}
       </div>
 

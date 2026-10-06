@@ -48,7 +48,7 @@ describe('SolicitarReservaUseCase', () => {
     const veiculoOk = createVeiculo({
       id: 'veh-2',
       empresaId: 'emp-1',
-      status: 'em_operacao',
+      status: 'disponivel',
     })
 
     const reservaRepo = {

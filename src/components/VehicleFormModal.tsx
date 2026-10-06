@@ -26,7 +26,7 @@ const emptyForm = {
   ano_modelo: '',
   ano_carroceria: '',
   km_atual: '',
-  status: 'em_operacao' as StatusVeiculo,
+  status: 'disponivel' as StatusVeiculo,
   empresa_id: '',
 }
 
@@ -55,7 +55,7 @@ export function VehicleFormModal({ isOpen, onClose, onSuccess, veiculo }: Vehicl
         ano_modelo: String(veiculo.ano_modelo ?? veiculo.ano ?? ''),
         ano_carroceria: veiculo.ano_carroceria ? String(veiculo.ano_carroceria) : '',
         km_atual: String(getVeiculoKm(veiculo)),
-        status: (veiculo.status as StatusVeiculo) ?? 'em_operacao',
+        status: (veiculo.status as StatusVeiculo) ?? 'disponivel',
         empresa_id: veiculo.empresa_id ?? '',
       })
     } else {

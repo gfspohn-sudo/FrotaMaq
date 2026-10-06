@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
-  PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip,
+  BarChart, Bar, XAxis, YAxis, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip,
 } from 'recharts'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { MaintenanceCard } from '@/components/MaintenanceCard'
 import { MaintenanceDetailModal } from '@/components/MaintenanceDetailModal'
-import { Select } from '@/components/ui/Input'
+import { Input, Select } from '@/components/ui/Input'
 import { getFinancialReport, getMaintenanceDashboard } from '@/services/reports'
-import { getVeiculoReport } from '@/services/vehicleReports'
 import {
-  getVeiculosEscopoMotorista,
   getSolicitacoesRelatorio,
   aprovarSolicitacaoRelatorio,
   rejeitarSolicitacaoRelatorio,
@@ -19,19 +18,20 @@ import type { SolicitacaoRelatorio } from '@/services/solicitacoesRelatorio'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/contexts/AuthContext'
 import { getVeiculos } from '@/services/vehicles'
+import { getReservas, getDriverTripHistory } from '@/services/reservas'
 import { TIPO_MANUTENCAO_LABELS } from '@/types/database'
-import type { Manutencao, Veiculo } from '@/types/database'
-import type { CostByType, CostByVehicle, MaintenanceDashboard } from '@/services/reports'
-import { formatCurrency } from '@/lib/maintenanceStatus'
-import { formatVehicleDisplayName } from '@/lib/vehicleDisplay'
+import type { Manutencao, Reserva, Veiculo } from '@/types/database'
+import type { CostBreakdownItem, CostByType, CostByVehicle, MaintenanceDashboard } from '@/services/reports'
+import { formatCurrency, formatDate } from '@/lib/maintenanceStatus'
+import { formatPlacaCurta } from '@/lib/vehicleDisplay'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { useTenant } from '@/contexts/TenantContext'
 import { usePermissions } from '@/hooks/usePermissions'
-import { VehicleReportAuthorizationService } from '@/domain/services/VehicleReportAuthorizationService'
+import { PeriodoFinanceiro } from '@/domain/value-objects/PeriodoFinanceiro'
+import { getManutencaoData } from '@/lib/dbCompat'
 
-type ViewMode = 'geral' | 'manutencoes' | 'custos' | 'pedidos'
+type ViewMode = 'executadas' | 'proximas' | 'custos' | 'pedidos'
 
-const STATUS_COLORS = { concluidas: '#22c55e', proximas: '#f97316', vencidas: '#ef4444' }
 const TYPE_COLORS = ['#2563eb', '#22c55e', '#f97316']
 
 function MaintenanceListSection({
@@ -54,78 +54,29 @@ function MaintenanceListSection({
         </Card>
       ) : (
         <div className="space-y-2">
-          {items.slice(0, 5).map(m => (
+          {items.map(m => (
             <MaintenanceCard key={m.id} manutencao={m} onClick={() => onSelect(m)} />
           ))}
-          {items.length > 5 && (
-            <p className="text-center text-xs text-gray-400">+ {items.length - 5} registros</p>
-          )}
         </div>
       )}
     </section>
   )
 }
 
-function MotoristaScopedReports() {
+function MotoristaTripHistory() {
   const { profile } = useAuth()
-  const { filterEmpresaId, empresas } = useTenant()
-  const [escopoIds, setEscopoIds] = useState<string[]>([])
-  const [veiculos, setVeiculos] = useState<Veiculo[]>([])
-  const [selectedId, setSelectedId] = useState('')
-  const [nomeExibicao, setNomeExibicao] = useState('')
-  const [totalGeral, setTotalGeral] = useState(0)
-  const [error, setError] = useState('')
+  const [trips, setTrips] = useState<Reserva[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadingReport, setLoadingReport] = useState(false)
 
-  const loadEscopo = useCallback(async () => {
-    if (!profile?.id) return
+  const load = useCallback(async () => {
     setLoading(true)
-    const { data: ids } = await getVeiculosEscopoMotorista(profile.id)
-    const escopo = ids ?? []
-    setEscopoIds(escopo)
-
-    const { data: allVeiculos } = await getVeiculos({ empresaId: filterEmpresaId }, profile)
-    const filtered = VehicleReportAuthorizationService.filtrarVeiculosMotorista(allVeiculos ?? [], escopo)
-    setVeiculos(filtered)
-    if (filtered.length > 0 && !selectedId) {
-      setSelectedId(filtered[0].id)
-    }
+    const { data } = await getDriverTripHistory(profile)
+    setTrips(data ?? [])
     setLoading(false)
-  }, [profile, filterEmpresaId])
-
-  const loadReport = useCallback(async (veiculoId: string) => {
-    if (!veiculoId) return
-    setLoadingReport(true)
-    setError('')
-    const { data, error: reportError } = await getVeiculoReport(profile, veiculoId)
-    setLoadingReport(false)
-    if (reportError) {
-      setError(reportError.message)
-      return
-    }
-    if (data) {
-      setNomeExibicao(data.nomeExibicao)
-      setTotalGeral(data.totalGeral)
-    }
   }, [profile])
 
-  useEffect(() => { loadEscopo() }, [loadEscopo])
-  useEffect(() => {
-    if (selectedId) loadReport(selectedId)
-  }, [selectedId, loadReport])
-  useDataRefresh(loadEscopo)
-
-  const vehicleOptions = useMemo(() => [
-    { value: '', label: veiculos.length === 0 ? 'Nenhum veículo no seu histórico' : 'Selecione o veículo' },
-    ...veiculos.map(v => ({
-      value: v.id,
-      label: formatVehicleDisplayName(
-        v.empresas?.nome ?? empresas.find(e => e.id === v.empresa_id)?.nome ?? 'Frota',
-        v.placa,
-      ),
-    })),
-  ], [veiculos, empresas])
+  useEffect(() => { load() }, [load])
+  useDataRefresh(load)
 
   if (loading) {
     return (
@@ -135,41 +86,34 @@ function MotoristaScopedReports() {
     )
   }
 
+  if (trips.length === 0) {
+    return (
+      <Card>
+        <p className="py-6 text-center text-sm text-gray-500">
+          Você ainda não utilizou veículos. Solicite uma reserva na aba Veículos.
+        </p>
+      </Card>
+    )
+  }
+
   return (
-    <div className="space-y-4">
-      <Select
-        label="Veículo (seu histórico de uso)"
-        value={selectedId}
-        onChange={e => setSelectedId(e.target.value)}
-        options={vehicleOptions}
-        disabled={veiculos.length === 0}
-      />
-
-      {escopoIds.length === 0 && (
-        <Card>
-          <p className="py-6 text-center text-sm text-gray-500">
-            Você ainda não possui reservas ou aluguéis. Solicite uma reserva na aba Veículos.
+    <div className="space-y-3">
+      <p className="text-sm text-gray-600">Histórico dos veículos que você utilizou</p>
+      {trips.map(t => (
+        <Card key={t.id}>
+          <p className="font-medium text-gray-900">
+            {t.veiculos ? `${t.veiculos.modelo ?? ''} · ${t.veiculos.placa}` : 'Veículo'}
           </p>
+          <p className="text-sm text-gray-600">{t.destino}</p>
+          <p className="mt-1 text-xs text-gray-500">
+            {new Date(t.data_viagem).toLocaleString('pt-BR')}
+            {t.data_fim ? ` — ${new Date(t.data_fim).toLocaleString('pt-BR')}` : ' — em andamento'}
+          </p>
+          {t.km_percorrido != null && (
+            <p className="text-xs text-gray-500">{t.km_percorrido.toLocaleString('pt-BR')} km percorridos</p>
+          )}
         </Card>
-      )}
-
-      {loadingReport ? (
-        <div className="flex justify-center py-8">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
-        </div>
-      ) : error ? (
-        <Card>
-          <p className="py-6 text-center text-sm text-danger">{error}</p>
-        </Card>
-      ) : selectedId && (
-        <>
-          <Card className="text-center">
-            <p className="text-sm text-gray-500">{nomeExibicao}</p>
-            <p className="mt-1 text-3xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
-            <p className="mt-1 text-xs text-gray-400">Custo acumulado do veículo</p>
-          </Card>
-        </>
-      )}
+      ))}
     </div>
   )
 }
@@ -228,29 +172,61 @@ export function ReportsPage() {
   const { profile } = useAuth()
   const { filterEmpresaId } = useTenant()
   const { isMotorista, canViewGlobalFinancialMetrics, canApproveReportAccess } = usePermissions()
-  const [viewMode, setViewMode] = useState<ViewMode>('geral')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    tabParam === 'custos' && canViewGlobalFinancialMetrics ? 'custos' : 'executadas',
+  )
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoRelatorio[]>([])
   const [dashboard, setDashboard] = useState<MaintenanceDashboard | null>(null)
   const [totalGeral, setTotalGeral] = useState(0)
+  const [totalMao, setTotalMao] = useState(0)
+  const [totalPecas, setTotalPecas] = useState(0)
   const [periodLabel, setPeriodLabel] = useState('Custo total do mês')
   const [costByType, setCostByType] = useState<CostByType[]>([])
   const [costByVehicle, setCostByVehicle] = useState<CostByVehicle[]>([])
+  const [breakdown, setBreakdown] = useState<CostBreakdownItem[]>([])
+  const [showDrillDown, setShowDrillDown] = useState(false)
   const [selected, setSelected] = useState<Manutencao | null>(null)
   const [loading, setLoading] = useState(true)
+  const [veiculos, setVeiculos] = useState<Veiculo[]>([])
+  const [reservas, setReservas] = useState<Reserva[]>([])
+  const [veiculoId, setVeiculoId] = useState('')
+  const [motoristaId, setMotoristaId] = useState('')
+  const [startDate, setStartDate] = useState(() => PeriodoFinanceiro.mesAtual().startDate)
+  const [endDate, setEndDate] = useState(() => PeriodoFinanceiro.mesAtual().endDate)
 
   const viewModes = useMemo(() => {
     const modes: { key: ViewMode; label: string }[] = [
-      { key: 'geral', label: 'Visualização Geral' },
-      { key: 'manutencoes', label: 'Manutenções' },
+      { key: 'executadas', label: 'Manutenções executadas' },
+      { key: 'proximas', label: 'Próximas manutenções' },
     ]
     if (canViewGlobalFinancialMetrics) {
-      modes.push({ key: 'custos', label: 'Custos' })
+      modes.push({ key: 'custos', label: 'Custos por período' })
     }
     if (canApproveReportAccess) {
-      modes.push({ key: 'pedidos', label: 'Pedidos de Relatório' })
+      modes.push({ key: 'pedidos', label: 'Pedidos' })
     }
     return modes
   }, [canViewGlobalFinancialMetrics, canApproveReportAccess])
+
+  const periodo = useMemo(
+    () => PeriodoFinanceiro.fromDates(startDate, endDate),
+    [startDate, endDate],
+  )
+
+  const motoristaOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const r of reservas) {
+      if (r.motorista_id && !map.has(r.motorista_id)) {
+        map.set(r.motorista_id, r.usuarios?.nome ?? r.motorista_id)
+      }
+    }
+    return [
+      { value: '', label: 'Todos os motoristas' },
+      ...[...map.entries()].map(([id, nome]) => ({ value: id, label: nome })),
+    ]
+  }, [reservas])
 
   const load = useCallback(async () => {
     if (isMotorista) {
@@ -259,51 +235,84 @@ export function ReportsPage() {
     }
     setLoading(true)
     const tenant = { empresaId: filterEmpresaId }
-    const [dashRes, finRes, solicitacoesRes] = await Promise.all([
+    const [dashRes, finRes, solicitacoesRes, veiculosRes, reservasRes] = await Promise.all([
       getMaintenanceDashboard(tenant, profile),
-      canViewGlobalFinancialMetrics ? getFinancialReport(tenant, profile) : Promise.resolve({ data: null }),
+      canViewGlobalFinancialMetrics
+        ? getFinancialReport({ ...tenant, period: periodo, veiculoId: veiculoId || undefined }, profile)
+        : Promise.resolve({ data: null }),
       canApproveReportAccess
         ? getSolicitacoesRelatorio(profile, { empresaId: filterEmpresaId, status: 'PENDENTE' })
         : Promise.resolve({ data: null }),
+      getVeiculos(tenant, profile),
+      getReservas(profile, { empresaId: filterEmpresaId }),
     ])
     if (dashRes.data) setDashboard(dashRes.data)
     if (finRes.data) {
       setTotalGeral(finRes.data.totalGeral)
+      setTotalMao(finRes.data.totalMaoDeObra ?? 0)
+      setTotalPecas(finRes.data.totalPecas ?? 0)
       setPeriodLabel(finRes.data.periodLabel)
       setCostByType(finRes.data.costByType)
-      setCostByVehicle(finRes.data.costByVehicle)
+      let vehicles = finRes.data.costByVehicle
+      if (motoristaId) {
+        const ids = new Set(
+          (reservasRes.data ?? []).filter(r => r.motorista_id === motoristaId).map(r => r.veiculo_id),
+        )
+        vehicles = vehicles.filter(v => ids.has(v.veiculo_id))
+      }
+      setCostByVehicle(vehicles)
+      setBreakdown(finRes.data.breakdown ?? [])
     }
     if (solicitacoesRes.data) setSolicitacoes(solicitacoesRes.data)
+    if (veiculosRes.data) setVeiculos(veiculosRes.data)
+    if (reservasRes.data) setReservas(reservasRes.data)
     setLoading(false)
-  }, [filterEmpresaId, isMotorista, canViewGlobalFinancialMetrics, canApproveReportAccess, profile])
+  }, [
+    filterEmpresaId, isMotorista, canViewGlobalFinancialMetrics, canApproveReportAccess,
+    profile, periodo, veiculoId, motoristaId,
+  ])
 
   useEffect(() => { load() }, [load])
   useDataRefresh(load)
 
-  const statusChartData = dashboard
-    ? [
-        { name: 'Concluídas', value: dashboard.statusCounts.concluidas, color: STATUS_COLORS.concluidas },
-        { name: 'Próximas', value: dashboard.statusCounts.proximas, color: STATUS_COLORS.proximas },
-        { name: 'Vencidas', value: dashboard.statusCounts.vencidas, color: STATUS_COLORS.vencidas },
-      ].filter(d => d.value > 0)
-    : []
+  function changeTab(mode: ViewMode) {
+    setViewMode(mode)
+    if (mode === 'custos') setSearchParams({ tab: 'custos' })
+    else setSearchParams({})
+  }
 
-  const typeChartData = dashboard
-    ? [
-        { name: 'Preventiva', value: dashboard.typeCounts.preventiva, color: TYPE_COLORS[0] },
-        { name: 'Corretiva', value: dashboard.typeCounts.corretiva, color: TYPE_COLORS[1] },
-        { name: 'Preditiva', value: dashboard.typeCounts.preditiva, color: TYPE_COLORS[2] },
-      ].filter(d => d.value > 0)
-    : []
+  const filteredExecutadas = useMemo(() => {
+    let items = dashboard?.concluidas ?? []
+    if (veiculoId) items = items.filter(m => m.veiculo_id === veiculoId)
+    if (motoristaId) {
+      const ids = new Set(reservas.filter(r => r.motorista_id === motoristaId).map(r => r.veiculo_id))
+      items = items.filter(m => ids.has(m.veiculo_id))
+    }
+    items = items.filter(m => periodo.contemTimestamp(getManutencaoData(m)))
+    return items
+  }, [dashboard, veiculoId, motoristaId, reservas, periodo])
+
+  const proximasPorTipo = useMemo(() => {
+    const items = [...(dashboard?.proximas30 ?? []), ...(dashboard?.vencidas ?? [])]
+    const groups = new Map<string, Manutencao[]>()
+    for (const m of items) {
+      const tipo = (m.tipo_normalizado ?? m.tipo ?? 'preventiva').toLowerCase()
+      const list = groups.get(tipo) ?? []
+      list.push(m)
+      groups.set(tipo, list)
+    }
+    return groups
+  }, [dashboard])
 
   const costChartData = costByType.map(item => ({
     name: TIPO_MANUTENCAO_LABELS[item.tipo],
     value: item.total,
   }))
 
-  const showMaintenance = viewMode === 'geral' || viewMode === 'manutencoes'
-  const showCosts = canViewGlobalFinancialMetrics && (viewMode === 'geral' || viewMode === 'custos')
-  const showPedidos = viewMode === 'pedidos'
+  const rankingData = costByVehicle.slice(0, 8).map(v => ({
+    name: formatPlacaCurta(v.placa) || v.modelo,
+    total: v.total,
+  }))
 
   return (
     <div>
@@ -311,16 +320,16 @@ export function ReportsPage() {
 
       <div className="space-y-4 px-4 py-4">
         {isMotorista ? (
-          <MotoristaScopedReports />
+          <MotoristaTripHistory />
         ) : (
           <>
             {viewModes.length > 1 && (
-              <div className="flex rounded-xl bg-gray-100 p-1">
+              <div className="flex flex-wrap rounded-xl bg-gray-100 p-1">
                 {viewModes.map(mode => (
                   <button
                     key={mode.key}
-                    onClick={() => setViewMode(mode.key)}
-                    className={`flex-1 rounded-lg py-2 text-xs font-medium transition-colors sm:text-sm ${
+                    onClick={() => changeTab(mode.key)}
+                    className={`flex-1 rounded-lg py-2 px-2 text-xs font-medium transition-colors sm:text-sm ${
                       viewMode === mode.key
                         ? 'bg-white text-action shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
@@ -332,130 +341,119 @@ export function ReportsPage() {
               </div>
             )}
 
+            {viewMode !== 'pedidos' && (
+              <Card className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Input label="Data início" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                <Input label="Data fim" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                <Select
+                  label="Veículo"
+                  value={veiculoId}
+                  onChange={e => setVeiculoId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Todos os veículos' },
+                    ...veiculos.map(v => ({ value: v.id, label: `${v.placa} · ${v.modelo ?? ''}` })),
+                  ]}
+                />
+                <Select
+                  label="Motorista"
+                  value={motoristaId}
+                  onChange={e => setMotoristaId(e.target.value)}
+                  options={motoristaOptions}
+                />
+              </Card>
+            )}
+
             {loading ? (
               <div className="flex justify-center py-12">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
               </div>
-            ) : showPedidos ? (
+            ) : viewMode === 'pedidos' ? (
               <PedidosRelatorioPanel solicitacoes={solicitacoes} onRefresh={load} />
+            ) : viewMode === 'executadas' ? (
+              <MaintenanceListSection
+                title="Manutenções executadas no período"
+                items={filteredExecutadas}
+                emptyMessage="Nenhuma manutenção executada no filtro selecionado."
+                onSelect={setSelected}
+              />
+            ) : viewMode === 'proximas' ? (
+              <div className="space-y-6">
+                <MaintenanceListSection
+                  title="Atrasadas / vencidas"
+                  items={dashboard?.vencidas ?? []}
+                  emptyMessage="Nenhuma manutenção atrasada."
+                  onSelect={setSelected}
+                />
+                {[...proximasPorTipo.entries()].map(([tipo, items]) => (
+                  <MaintenanceListSection
+                    key={tipo}
+                    title={`${TIPO_MANUTENCAO_LABELS[tipo as keyof typeof TIPO_MANUTENCAO_LABELS] ?? tipo} — por km/data`}
+                    items={items}
+                    emptyMessage="Sem registros."
+                    onSelect={setSelected}
+                  />
+                ))}
+              </div>
             ) : (
-              <>
-                {showCosts && (
-                  <Card className="text-center">
-                    <p className="text-sm text-gray-500">{periodLabel}</p>
-                    <p className="mt-1 text-3xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
-                  </Card>
-                )}
+              canViewGlobalFinancialMetrics && (
+                <>
+                  <button type="button" className="w-full text-left" onClick={() => setShowDrillDown(true)}>
+                    <Card className="text-center hover:bg-gray-50">
+                      <p className="text-sm text-gray-500">{periodLabel}</p>
+                      <p className="mt-1 text-3xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
+                      <p className="mt-1 text-xs text-action">Toque para ver peças + mão de obra</p>
+                    </Card>
+                  </button>
 
-                {showMaintenance && dashboard && (
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    {statusChartData.length > 0 && (
-                      <Card>
-                        <p className="mb-2 text-sm font-medium text-gray-700">Status das manutenções</p>
-                        <ResponsiveContainer width="100%" height={220}>
-                          <PieChart>
-                            <Pie
-                              data={statusChartData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={80}
-                              paddingAngle={3}
-                              dataKey="value"
-                            >
-                              {statusChartData.map((entry, i) => (
-                                <Cell key={i} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </Card>
-                    )}
-
-                    {typeChartData.length > 0 && (
-                      <Card>
-                        <p className="mb-2 text-sm font-medium text-gray-700">Distribuição por tipo de manutenção</p>
-                        <ResponsiveContainer width="100%" height={220}>
-                          <PieChart>
-                            <Pie
-                              data={typeChartData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={80}
-                              paddingAngle={3}
-                              dataKey="value"
-                            >
-                              {typeChartData.map((entry, i) => (
-                                <Cell key={i} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </Card>
-                    )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Card>
+                      <p className="text-xs text-gray-500">Mão de obra</p>
+                      <p className="text-lg font-semibold">{formatCurrency(totalMao)}</p>
+                    </Card>
+                    <Card>
+                      <p className="text-xs text-gray-500">Peças</p>
+                      <p className="text-lg font-semibold">{formatCurrency(totalPecas)}</p>
+                    </Card>
                   </div>
-                )}
 
-                {showCosts && costChartData.length > 0 && (
-                  <Card>
-                    <p className="mb-2 text-sm font-medium text-gray-700">Impacto financeiro por tipo</p>
-                    <ResponsiveContainer width="100%" height={220}>
-                      <PieChart>
-                        <Pie
-                          data={costChartData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {costChartData.map((_, i) => (
-                            <Cell key={i} fill={TYPE_COLORS[i % TYPE_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </Card>
-                )}
+                  {veiculoId && (
+                    <Card>
+                      <p className="text-sm text-gray-500">Custo do veículo no período</p>
+                      <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
+                    </Card>
+                  )}
 
-                {showMaintenance && dashboard && (
-                  <div className="space-y-6">
-                    <MaintenanceListSection
-                      title="Manutenções vencidas"
-                      items={dashboard.vencidas}
-                      emptyMessage="Nenhuma manutenção vencida."
-                      onSelect={setSelected}
-                    />
-                    <MaintenanceListSection
-                      title="Veículos em manutenção"
-                      items={dashboard.emManutencao}
-                      emptyMessage="Nenhum veículo em manutenção no momento."
-                      onSelect={setSelected}
-                    />
-                    <MaintenanceListSection
-                      title="Próximas manutenções (30 dias)"
-                      items={dashboard.proximas30}
-                      emptyMessage="Nenhuma manutenção prevista para os próximos 30 dias."
-                      onSelect={setSelected}
-                    />
-                    <MaintenanceListSection
-                      title="Manutenções concluídas"
-                      items={dashboard.concluidas}
-                      emptyMessage="Nenhuma manutenção concluída registrada."
-                      onSelect={setSelected}
-                    />
-                  </div>
-                )}
+                  {rankingData.length > 0 && (
+                    <Card>
+                      <p className="mb-2 text-sm font-medium text-gray-700">Ranking de custo por veículo</p>
+                      <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={rankingData}>
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                          <Bar dataKey="total" fill="#2563eb" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Card>
+                  )}
 
-                {showCosts && (
+                  {costChartData.length > 0 && (
+                    <Card>
+                      <p className="mb-2 text-sm font-medium text-gray-700">Impacto financeiro por tipo</p>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <PieChart>
+                          <Pie data={costChartData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
+                            {costChartData.map((_, i) => (
+                              <Cell key={i} fill={TYPE_COLORS[i % TYPE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </Card>
+                  )}
+
                   <section>
                     <h2 className="mb-3 text-sm font-semibold text-gray-900">Gasto por veículo</h2>
                     {costByVehicle.length === 0 ? (
@@ -476,12 +474,37 @@ export function ReportsPage() {
                       </div>
                     )}
                   </section>
-                )}
-              </>
+                </>
+              )
             )}
           </>
         )}
       </div>
+
+      {showDrillDown && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowDrillDown(false)} />
+          <div className="relative z-10 max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+            <h3 className="text-lg font-semibold">Discriminação do custo</h3>
+            <p className="text-sm text-gray-500">{periodLabel}</p>
+            <div className="mt-3 space-y-2">
+              {breakdown.length === 0 ? (
+                <p className="text-sm text-gray-500">Sem itens no período.</p>
+              ) : breakdown.map(item => (
+                <Card key={item.manutencaoId}>
+                  <p className="text-sm font-medium">{item.descricao}</p>
+                  <p className="text-xs text-gray-500">{item.placa} · {formatDate(item.dataHora)}</p>
+                  <p className="mt-1 text-sm">Mão de obra {formatCurrency(item.valorMaoDeObra)} · Peças {formatCurrency(item.valorPecas)}</p>
+                  <p className="font-semibold">{formatCurrency(item.valorTotal)}</p>
+                </Card>
+              ))}
+            </div>
+            <Button className="mt-4 w-full" variant="secondary" onClick={() => setShowDrillDown(false)}>
+              Fechar
+            </Button>
+          </div>
+        </div>
+      )}
 
       <MaintenanceDetailModal
         manutencao={selected}

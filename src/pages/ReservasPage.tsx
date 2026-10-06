@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useTenant } from '@/contexts/TenantContext'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
-import { getReservas, solicitarReserva, aprovarReserva, rejeitarReserva } from '@/services/reservas'
+import { getReservas, solicitarReserva, aprovarReserva, rejeitarReserva, finalizarViagem } from '@/services/reservas'
 import { getVeiculos } from '@/services/vehicles'
 import { STATUS_RESERVA_LABELS } from '@/types/database'
 import type { Reserva, Veiculo } from '@/types/database'
@@ -26,6 +26,7 @@ export function ReservasPage() {
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [error, setError] = useState('')
+  const [kmFinalById, setKmFinalById] = useState<Record<string, string>>({})
   const [form, setForm] = useState({
     veiculo_id: preselectedVeiculo,
     data_viagem: '',
@@ -98,6 +99,13 @@ export function ReservasPage() {
   async function handleReject(id: string) {
     const { error: rejectError } = await rejeitarReserva(profile, id)
     if (rejectError) setError(rejectError.message)
+    else load()
+  }
+
+  async function handleFinish(id: string) {
+    const kmFinal = Number(kmFinalById[id])
+    const { error: finishError } = await finalizarViagem(profile, id, kmFinal)
+    if (finishError) setError(finishError.message)
     else load()
   }
 
@@ -189,6 +197,15 @@ export function ReservasPage() {
                     <p className="text-xs text-gray-500 flex items-center gap-1">
                       <Gauge className="h-3.5 w-3.5" /> {r.km_ida_volta.toLocaleString('pt-BR')} km (ida/volta)
                     </p>
+                    {r.km_inicial != null && (
+                      <p className="text-xs text-gray-500">Km inicial: {r.km_inicial.toLocaleString('pt-BR')}</p>
+                    )}
+                    {r.km_final != null && (
+                      <p className="text-xs text-gray-500">
+                        Km final: {r.km_final.toLocaleString('pt-BR')}
+                        {r.km_percorrido != null ? ` · ${r.km_percorrido.toLocaleString('pt-BR')} km percorridos` : ''}
+                      </p>
+                    )}
                     {r.usuarios?.nome && (
                       <p className="text-xs text-gray-400">Motorista: {r.usuarios.nome}</p>
                     )}
@@ -196,6 +213,7 @@ export function ReservasPage() {
                   <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                     r.status === 'APROVADO' ? 'bg-success/10 text-success'
                       : r.status === 'REJEITADO' ? 'bg-danger/10 text-danger'
+                        : r.status === 'CONCLUIDA' ? 'bg-gray-100 text-gray-600'
                         : 'bg-warning/10 text-warning'
                   }`}>
                     {STATUS_RESERVA_LABELS[r.status]}
@@ -208,6 +226,20 @@ export function ReservasPage() {
                     </Button>
                     <Button size="sm" variant="danger" className="flex-1" onClick={() => handleReject(r.id)}>
                       Rejeitar
+                    </Button>
+                  </div>
+                )}
+                {r.status === 'APROVADO' && (
+                  <div className="mt-3 flex items-end gap-2">
+                    <Input
+                      label="Km final"
+                      type="number"
+                      min={r.km_inicial ?? 0}
+                      value={kmFinalById[r.id] ?? ''}
+                      onChange={e => setKmFinalById(prev => ({ ...prev, [r.id]: e.target.value }))}
+                    />
+                    <Button size="sm" onClick={() => handleFinish(r.id)}>
+                      Finalizar viagem
                     </Button>
                   </div>
                 )}

@@ -29,7 +29,10 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
     tipo: 'preventiva' as TipoManutencao,
     descricao: '',
     data_hora: '',
-    valor: '',
+    valor_mao_de_obra: '',
+    valor_pecas: '',
+    pecas: '',
+    observacao: '',
   })
 
   useEffect(() => {
@@ -48,13 +51,35 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
 
     const selectedVeiculo = veiculos.find(v => v.id === form.veiculo_id)
 
+    const pecasTrocadas = form.pecas
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => {
+        const [descricao, qtd, valor] = line.split('|').map(s => s.trim())
+        return {
+          descricao: descricao || line,
+          quantidade: Number(qtd) || 1,
+          valor_unitario: Number(valor) || 0,
+        }
+      })
+
+    const valorMao = form.valor_mao_de_obra ? parseFloat(form.valor_mao_de_obra) : 0
+    const valorPecas = form.valor_pecas
+      ? parseFloat(form.valor_pecas)
+      : pecasTrocadas.reduce((sum, p) => sum + p.quantidade * p.valor_unitario, 0)
+
     const { error: createError } = await createManutencao({
       veiculo_id: form.veiculo_id,
       empresa_id: selectedVeiculo?.empresa_id ?? profile?.empresa_id ?? undefined,
       tipo: form.tipo,
       descricao: form.descricao,
       data_hora: new Date(form.data_hora).toISOString(),
-      valor: form.valor ? parseFloat(form.valor) : 0,
+      valor_mao_de_obra: valorMao,
+      valor_pecas: valorPecas,
+      pecas_trocadas: pecasTrocadas,
+      observacao: form.observacao || null,
+      km_atual_veiculo: selectedVeiculo?.quilometragem_atual ?? selectedVeiculo?.km_atual ?? undefined,
     }, profile)
 
     setLoading(false)
@@ -111,13 +136,37 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
         />
 
         <Input
-          label="Valor Total (R$)"
+          label="Valor da mão de obra (R$)"
           type="number"
           step="0.01"
           min="0"
           placeholder="0,00"
-          value={form.valor}
-          onChange={e => setForm(prev => ({ ...prev, valor: e.target.value }))}
+          value={form.valor_mao_de_obra}
+          onChange={e => setForm(prev => ({ ...prev, valor_mao_de_obra: e.target.value }))}
+        />
+
+        <Input
+          label="Valor das peças (R$)"
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="0,00"
+          value={form.valor_pecas}
+          onChange={e => setForm(prev => ({ ...prev, valor_pecas: e.target.value }))}
+        />
+
+        <Textarea
+          label="Peças trocadas (uma por linha: peça | qtd | valor unitário)"
+          placeholder="Filtro de óleo | 1 | 80"
+          value={form.pecas}
+          onChange={e => setForm(prev => ({ ...prev, pecas: e.target.value }))}
+        />
+
+        <Textarea
+          label="Observação (opcional)"
+          placeholder="Detalhes da oficina, garantia..."
+          value={form.observacao}
+          onChange={e => setForm(prev => ({ ...prev, observacao: e.target.value }))}
         />
 
         {error && (

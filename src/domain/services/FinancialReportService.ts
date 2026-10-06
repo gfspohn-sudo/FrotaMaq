@@ -12,12 +12,29 @@ export interface CostByVehicle {
   placa: string
   modelo: string
   total: number
+  valorMaoDeObra: number
+  valorPecas: number
+}
+
+export interface CostBreakdownItem {
+  manutencaoId: string
+  veiculoId: string
+  placa: string
+  descricao: string
+  dataHora: string
+  valorMaoDeObra: number
+  valorPecas: number
+  valorTotal: number
+  pecas: { descricao: string; quantidade: number; valor_unitario: number }[]
 }
 
 export interface FinancialReportResult {
   totalGeral: number
+  totalMaoDeObra: number
+  totalPecas: number
   costByType: CostByType[]
   costByVehicle: CostByVehicle[]
+  breakdown: CostBreakdownItem[]
   periodLabel: string
   recordCount: number
   usedFallbackPeriod: boolean
@@ -39,6 +56,8 @@ export class FinancialReportService {
     usedFallbackPeriod = false,
   ): FinancialReportResult {
     const totalGeral = manutencoes.reduce((sum, m) => sum + m.valor.value, 0)
+    const totalMaoDeObra = manutencoes.reduce((sum, m) => sum + m.valorMaoDeObra.value, 0)
+    const totalPecas = manutencoes.reduce((sum, m) => sum + m.valorPecas.value, 0)
 
     const byType = manutencoes.reduce<Record<string, number>>((acc, m) => {
       acc[m.tipo] = (acc[m.tipo] ?? 0) + m.valor.value
@@ -57,18 +76,37 @@ export class FinancialReportService {
           placa: m.veiculoResumo?.placa ?? '',
           modelo: m.veiculoResumo?.modelo ?? '',
           total: 0,
+          valorMaoDeObra: 0,
+          valorPecas: 0,
         }
       }
       acc[m.veiculoId].total += m.valor.value
+      acc[m.veiculoId].valorMaoDeObra += m.valorMaoDeObra.value
+      acc[m.veiculoId].valorPecas += m.valorPecas.value
       return acc
     }, {})
 
     const costByVehicle = Object.values(byVehicle).sort((a, b) => b.total - a.total)
 
+    const breakdown: CostBreakdownItem[] = manutencoes.map(m => ({
+      manutencaoId: m.id,
+      veiculoId: m.veiculoId,
+      placa: m.veiculoResumo?.placa ?? '',
+      descricao: m.descricao,
+      dataHora: m.dataHora,
+      valorMaoDeObra: m.valorMaoDeObra.value,
+      valorPecas: m.valorPecas.value,
+      valorTotal: m.valor.value,
+      pecas: m.pecasTrocadas,
+    }))
+
     return {
       totalGeral,
+      totalMaoDeObra,
+      totalPecas,
       costByType,
       costByVehicle,
+      breakdown,
       periodLabel: periodo.label,
       recordCount: manutencoes.length,
       usedFallbackPeriod,

@@ -29,13 +29,13 @@ describe('Veiculo', () => {
   })
 
   it('altera status para em_manutencao ao encaminhar para manutenção', () => {
-    const veiculo = createVeiculo({ status: 'em_operacao' })
+    const veiculo = createVeiculo({ status: 'disponivel' })
 
     const emManutencao = veiculo.encaminharParaManutencao()
 
     expect(emManutencao.status).toBe('em_manutencao')
     expect(emManutencao.estaEmManutencao()).toBe(true)
-    expect(veiculo.status).toBe('em_operacao')
+    expect(veiculo.status).toBe('disponivel')
   })
 
   it('mantém imutabilidade quando já está em manutenção', () => {

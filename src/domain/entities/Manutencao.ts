@@ -1,4 +1,4 @@
-import type { Manutencao as ManutencaoDTO } from '@/types/database'
+import type { Manutencao as ManutencaoDTO, PecaTrocada } from '@/types/database'
 import type {
   StatusManutencao,
   TipoManutencao,
@@ -28,6 +28,12 @@ export interface ManutencaoProps {
   valor: unknown
   metodoPagamento: MetodoPagamento | string | null
   proximaManutencaoData: string | null
+  proximaManutencaoKm?: number | null
+  kmAtualVeiculo?: number | null
+  pecasTrocadas?: PecaTrocada[]
+  valorMaoDeObra?: number
+  valorPecas?: number
+  observacao?: string | null
   status: StatusManutencao
   createdAt: string
   veiculoResumo?: VeiculoResumoProps | null
@@ -54,6 +60,12 @@ export class Manutencao {
   readonly valor: Money
   readonly metodoPagamento: MetodoPagamento | string | null
   readonly proximaManutencaoData: string | null
+  readonly proximaManutencaoKm: number | null
+  readonly kmAtualVeiculo: number | null
+  readonly pecasTrocadas: PecaTrocada[]
+  readonly valorMaoDeObra: Money
+  readonly valorPecas: Money
+  readonly observacao: string | null
   readonly status: StatusManutencao
   readonly createdAt: string
   readonly veiculoResumo: VeiculoResumoProps | null
@@ -67,12 +79,21 @@ export class Manutencao {
     this.dataHora = props.dataHora
     this.local = props.local
     this.responsavel = props.responsavel
-    this.valor = Money.from(props.valor)
     this.metodoPagamento = props.metodoPagamento
     this.proximaManutencaoData = props.proximaManutencaoData
+    this.proximaManutencaoKm = props.proximaManutencaoKm ?? null
+    this.kmAtualVeiculo = props.kmAtualVeiculo ?? null
+    this.pecasTrocadas = props.pecasTrocadas ?? []
+    this.valorMaoDeObra = Money.from(props.valorMaoDeObra ?? 0)
+    this.valorPecas = Money.from(props.valorPecas ?? 0)
+    this.observacao = props.observacao ?? null
     this.status = props.status
     this.createdAt = props.createdAt
     this.veiculoResumo = props.veiculoResumo ?? null
+
+    const totalInformado = Money.from(props.valor)
+    const totalDiscriminado = this.valorMaoDeObra.add(this.valorPecas)
+    this.valor = totalDiscriminado.isPositive() ? totalDiscriminado : totalInformado
   }
 
   get nomeVeiculo(): string {
@@ -90,9 +111,14 @@ export class Manutencao {
     return this.valor.isPositive()
   }
 
-  /** Valor Total da manutenção (soma consolidada). */
+  /** Valor Total da manutenção (mão de obra + peças). */
   calcularValorTotal(): Money {
     return this.valor
+  }
+
+  isTrocaDeOleo(): boolean {
+    const texto = `${this.descricao} ${this.observacao ?? ''}`.toLowerCase()
+    return /oleo|óleo|lubrific/.test(texto)
   }
 
   entraEmRelatorioFinanceiro(): boolean {
@@ -129,8 +155,14 @@ export class Manutencao {
       veiculo_id: this.veiculoId,
       descricao: this.descricao,
       valor_total: this.valor.value,
+      valor_mao_de_obra: this.valorMaoDeObra.value,
+      valor_pecas: this.valorPecas.value,
+      pecas_trocadas: this.pecasTrocadas,
+      km_atual_veiculo: this.kmAtualVeiculo,
+      observacao: this.observacao,
       data_manutencao: this.dataHora,
       data_proxima_manutencao: this.proximaManutencaoData,
+      proxima_manutencao_km: this.proximaManutencaoKm,
       tipo: this.tipo.toUpperCase(),
       status: this.status,
       forma_pagamento: formaPagamento,

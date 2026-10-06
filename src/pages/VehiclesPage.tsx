@@ -14,7 +14,7 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { useTenant } from '@/contexts/TenantContext'
 import type { Veiculo, StatusVeiculo } from '@/types/database'
 import { STATUS_VEICULO_LABELS } from '@/types/database'
-import { formatVehicleDisplayName, formatVehicleSubtitle } from '@/lib/vehicleDisplay'
+import { formatVehicleSubtitle, formatPlacaCurta } from '@/lib/vehicleDisplay'
 import { getVeiculoMarca, getVeiculoModelo } from '@/lib/dbCompat'
 import { formatErrorMessage } from '@/lib/formatError'
 import { safeHttpsUrl } from '@/lib/safeMediaUrl'
@@ -242,13 +242,13 @@ export function VehiclesPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-gray-900">
-                      {formatVehicleDisplayName(
-                        v.empresas?.nome ?? tenantEmpresas.find(e => e.id === v.empresa_id)?.nome ?? 'Frota',
-                        v.placa,
-                      )}
+                      •••{formatPlacaCurta(v.placa)}
                     </p>
                     <p className="text-sm text-gray-500">
                       {getVeiculoModelo(v)} · {formatVehicleSubtitle(getVeiculoMarca(v), v.ano_modelo ?? v.ano ?? 0, v.ano_carroceria)}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {v.empresas?.nome ?? tenantEmpresas.find(e => e.id === v.empresa_id)?.nome ?? 'Frota'}
                     </p>
                   </div>
                 </Link>

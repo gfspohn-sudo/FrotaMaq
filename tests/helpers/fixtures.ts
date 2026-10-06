@@ -16,7 +16,7 @@ function buildVeiculoProps(overrides: Partial<{
   anoModelo: number
   anoCarroceria: number | null
   kmAtual: number
-  status: 'em_operacao' | 'em_manutencao' | 'fora_de_operacao'
+  status: 'disponivel' | 'em_viagem' | 'em_manutencao' | 'parado'
   fotoUrl: string | null
   createdAt: string
   empresaNome?: string | null
@@ -31,7 +31,7 @@ function buildVeiculoProps(overrides: Partial<{
     anoModelo: 2022,
     anoCarroceria: null,
     kmAtual: 50_000,
-    status: 'em_operacao' as const,
+    status: 'disponivel' as const,
     fotoUrl: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     empresaNome: 'Empresa ABC',
@@ -51,7 +51,6 @@ export function createManutencao(overrides: Partial<ManutencaoProps> = {}) {
     responsavel: 'João',
     valor: 1500,
     metodoPagamento: 'pix',
-    proximaManutencaoPrevisao: null,
     proximaManutencaoData: null,
     proximaManutencaoKm: null,
     status: 'concluida',

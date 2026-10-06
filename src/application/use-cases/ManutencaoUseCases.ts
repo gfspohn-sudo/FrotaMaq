@@ -1,15 +1,18 @@
 import type { IManutencaoRepository } from '@/domain/repositories/IManutencaoRepository'
 import type { IVeiculoRepository } from '@/domain/repositories/IVeiculoRepository'
 import { TenantScopeService } from '@/domain/services/TenantScopeService'
+import { NextMaintenanceScheduleService } from '@/domain/services/NextMaintenanceScheduleService'
 import { UsuarioFactory } from '@/domain/entities/usuario/UsuarioFactory'
 import { ManutencaoMapper } from '@/infrastructure/mappers/ManutencaoMapper'
 import type { NovaManutencao, StatusManutencao, Usuario as UsuarioProfile } from '@/types/database'
 
 export class CreateManutencaoUseCase {
   private readonly manutencaoRepo: IManutencaoRepository
+  private readonly veiculoRepo?: IVeiculoRepository
 
-  constructor(manutencaoRepo: IManutencaoRepository) {
+  constructor(manutencaoRepo: IManutencaoRepository, veiculoRepo?: IVeiculoRepository) {
     this.manutencaoRepo = manutencaoRepo
+    this.veiculoRepo = veiculoRepo
   }
 
   async execute(input: NovaManutencao, profile?: UsuarioProfile | null) {
@@ -18,7 +21,34 @@ export class CreateManutencaoUseCase {
       return { data: null, error: new Error('Sem permissão para registrar manutenções.') }
     }
 
-    const { data, error } = await this.manutencaoRepo.create(input)
+    const payload: NovaManutencao = { ...input }
+
+    if (this.veiculoRepo) {
+      const { scoped } = TenantScopeService.resolveQueryScope(profile)
+      const veiculoRes = await this.veiculoRepo.findById(input.veiculo_id, scoped.empresaId ?? input.empresa_id)
+      const veiculo = veiculoRes.data
+      if (veiculo) {
+        const kmAtual = payload.km_atual_veiculo ?? veiculo.kmAtual.value
+        const schedule = NextMaintenanceScheduleService.calcular({
+          tipo: payload.tipo,
+          kmAtual,
+          dataManutencao: payload.data_hora,
+          intervaloKm: veiculo.intervaloManutencaoKm,
+          intervaloDias: veiculo.intervaloManutencaoDias,
+        })
+        payload.km_atual_veiculo = kmAtual
+        payload.proxima_manutencao_km = payload.proxima_manutencao_km ?? schedule.proximaManutencaoKm
+        payload.data_proxima_manutencao = payload.data_proxima_manutencao ?? schedule.dataProximaManutencao
+      }
+    }
+
+    const mao = payload.valor_mao_de_obra ?? 0
+    const pecas = payload.valor_pecas ?? 0
+    if (mao > 0 || pecas > 0) {
+      payload.valor = mao + pecas
+    }
+
+    const { data, error } = await this.manutencaoRepo.create(payload)
     return { data: data ? ManutencaoMapper.toDTO(data) : null, error }
   }
 }
@@ -99,7 +129,7 @@ export class ConcluirManutencaoUseCase {
 
     const { error: veiculoError } = await this.veiculoRepo.update(
       manutencao.veiculoId,
-      { status: 'em_operacao' },
+      { status: 'disponivel' },
       scoped.empresaId,
     )
 

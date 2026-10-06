@@ -62,7 +62,7 @@ export async function getVeiculos(filters?: VeiculoFilters, profile?: Usuario | 
 
   const usuario = UsuarioFactory.fromProfile(profile)
   if (data && VeiculoDisponibilidadeService.motoristaDeveVerApenasDisponiveis(usuario)) {
-    data = data.filter(v => v.status === 'em_operacao')
+    data = data.filter(v => v.status === 'disponivel')
   }
 
   return { data, error: asServiceError(result.error) }
@@ -80,7 +80,7 @@ export async function getVeiculoById(id: string, profile?: Usuario | null) {
   if (
     result.data
     && VeiculoDisponibilidadeService.motoristaDeveVerApenasDisponiveis(usuario)
-    && result.data.status !== 'em_operacao'
+    && result.data.status !== 'disponivel'
   ) {
     return {
       data: null,
@@ -136,6 +136,13 @@ export async function getFleetSummary(options?: TenantQueryOptions, profile?: Us
   if (scopeError) return { data: null, error: scopeError }
 
   return container.getFleetSummary.execute(scoped)
+}
+
+export async function getFleetAlerts(options?: TenantQueryOptions, profile?: Usuario | null) {
+  const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile, options)
+  if (scopeError) return { data: null, error: scopeError }
+
+  return container.getFleetAlerts.execute(scoped)
 }
 
 export async function seedTestVeiculos(empresaId?: string, profile?: Usuario | null) {

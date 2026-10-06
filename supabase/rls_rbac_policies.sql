@@ -177,7 +177,10 @@ CREATE POLICY "manutencoes_select_policy" ON public.manutencoes
 FOR SELECT TO authenticated
 USING (
   public.auth_user_perfil() = 'super_admin'
-  OR empresa_id = public.auth_user_empresa_id()
+  OR (
+    empresa_id = public.auth_user_empresa_id()
+    AND public.auth_user_perfil() IN ('gestor', 'gerente', 'mecanico')
+  )
 );
 
 CREATE POLICY "manutencoes_insert_policy" ON public.manutencoes

@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { formatCurrency } from '@/lib/maintenanceStatus'
 import type { MaintenanceDashboard } from '@/services/reports'
@@ -12,6 +13,7 @@ interface DashboardChartsProps {
   periodLabel?: string
   showCostCard?: boolean
   showStatusCharts?: boolean
+  costHref?: string
 }
 
 export function DashboardCharts({
@@ -20,6 +22,7 @@ export function DashboardCharts({
   periodLabel = 'Custo total do mês',
   showCostCard = false,
   showStatusCharts = true,
+  costHref,
 }: DashboardChartsProps) {
   const statusChartData = [
     { name: 'Concluídas', value: dashboard.statusCounts.concluidas, color: STATUS_COLORS.concluidas },
@@ -36,10 +39,13 @@ export function DashboardCharts({
   return (
     <div className="space-y-4">
       {showCostCard && totalGeral != null && (
-        <Card className="text-center">
-          <p className="text-sm text-gray-500">{periodLabel}</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
-        </Card>
+        <Link to={costHref ?? '/relatorios?tab=custos'}>
+          <Card className="text-center hover:bg-gray-50">
+            <p className="text-sm text-gray-500">{periodLabel}</p>
+            <p className="mt-1 text-3xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
+            <p className="mt-1 text-xs text-action">Toque para ver a discriminação de custos</p>
+          </Card>
+        </Link>
       )}
 
       {showStatusCharts && (statusChartData.length > 0 || typeChartData.length > 0) && (

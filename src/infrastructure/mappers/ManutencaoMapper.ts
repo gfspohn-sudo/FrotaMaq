@@ -129,6 +129,18 @@ export class ManutencaoMapper {
     if (input.data_proxima_manutencao != null) {
       payload.data_proxima_manutencao = input.data_proxima_manutencao
     }
+    if (input.km_atual_veiculo != null) payload.km_atual_veiculo = input.km_atual_veiculo
+    if (input.pecas_trocadas != null) payload.pecas_trocadas = input.pecas_trocadas
+    if (input.valor_mao_de_obra != null) payload.valor_mao_de_obra = input.valor_mao_de_obra
+    if (input.valor_pecas != null) payload.valor_pecas = input.valor_pecas
+    if (input.observacao != null) payload.observacao = input.observacao
+    if (input.proxima_manutencao_km != null) payload.proxima_manutencao_km = input.proxima_manutencao_km
+
+    const mao = input.valor_mao_de_obra ?? 0
+    const pecas = input.valor_pecas ?? 0
+    if (mao > 0 || pecas > 0) {
+      payload.valor_total = mao + pecas
+    }
 
     return payload
   }
@@ -146,7 +158,31 @@ export class ManutencaoMapper {
     if (input.data_proxima_manutencao !== undefined) {
       payload.data_proxima_manutencao = input.data_proxima_manutencao
     }
+    if (input.km_atual_veiculo !== undefined) payload.km_atual_veiculo = input.km_atual_veiculo
+    if (input.pecas_trocadas !== undefined) payload.pecas_trocadas = input.pecas_trocadas
+    if (input.valor_mao_de_obra !== undefined) payload.valor_mao_de_obra = input.valor_mao_de_obra
+    if (input.valor_pecas !== undefined) payload.valor_pecas = input.valor_pecas
+    if (input.observacao !== undefined) payload.observacao = input.observacao
+    if (input.proxima_manutencao_km !== undefined) payload.proxima_manutencao_km = input.proxima_manutencao_km
+    if (input.valor_mao_de_obra != null || input.valor_pecas != null) {
+      payload.valor_total = (input.valor_mao_de_obra ?? 0) + (input.valor_pecas ?? 0)
+    }
     return payload
+  }
+
+  static parsePecasTrocadas(value: unknown): { descricao: string; quantidade: number; valor_unitario: number }[] {
+    if (!value) return []
+    const raw = typeof value === 'string' ? (() => {
+      try { return JSON.parse(value) } catch { return [] }
+    })() : value
+    if (!Array.isArray(raw)) return []
+    return raw
+      .map((item: { descricao?: string; nome?: string; quantidade?: number; valor_unitario?: number; valor?: number }) => ({
+        descricao: String(item?.descricao ?? item?.nome ?? ''),
+        quantidade: Number(item?.quantidade ?? 1) || 1,
+        valor_unitario: Number(item?.valor_unitario ?? item?.valor ?? 0) || 0,
+      }))
+      .filter(item => item.descricao.trim().length > 0)
   }
 
   private static parseVeiculoResumo(veiculo?: VeiculoJoinRow | null) {
@@ -172,6 +208,9 @@ export class ManutencaoMapper {
     const dataProxima = row.data_proxima_manutencao ?? row.proxima_manutencao_data ?? null
     const formaPagamento = row.forma_pagamento ?? row.metodo_pagamento ?? null
     const local = row.local_manutencao ?? row.local ?? null
+    const pecas = ManutencaoMapper.parsePecasTrocadas(row.pecas_trocadas)
+    const valorPecas = row.valor_pecas ?? pecas.reduce((sum, p) => sum + p.quantidade * p.valor_unitario, 0)
+    const valorMao = row.valor_mao_de_obra ?? 0
 
     return new Manutencao({
       id: row.id,
@@ -183,6 +222,12 @@ export class ManutencaoMapper {
       local,
       responsavel: row.responsavel ?? null,
       valor,
+      valorMaoDeObra: valorMao,
+      valorPecas,
+      pecasTrocadas: pecas,
+      kmAtualVeiculo: row.km_atual_veiculo ?? null,
+      observacao: row.observacao ?? null,
+      proximaManutencaoKm: row.proxima_manutencao_km ?? null,
       metodoPagamento:
         ManutencaoMapper.normalizeFormaPagamento(formaPagamento) ?? formaPagamento,
       proximaManutencaoData: dataProxima,

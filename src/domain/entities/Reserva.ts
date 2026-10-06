@@ -10,6 +10,10 @@ export interface ReservaProps {
   dataViagem: string
   destino: string
   kmIdaVolta: number
+  kmInicial?: number | null
+  kmFinal?: number | null
+  kmPercorrido?: number | null
+  dataFim?: string | null
   status: StatusReserva
   observacaoGestor: string | null
   createdAt: string
@@ -28,6 +32,10 @@ export class Reserva {
   readonly dataViagem: string
   readonly destino: string
   readonly kmIdaVolta: number
+  readonly kmInicial: number | null
+  readonly kmFinal: number | null
+  readonly kmPercorrido: number | null
+  readonly dataFim: string | null
   readonly status: StatusReserva
   readonly observacaoGestor: string | null
   readonly createdAt: string
@@ -44,6 +52,10 @@ export class Reserva {
     this.dataViagem = props.dataViagem
     this.destino = props.destino
     this.kmIdaVolta = props.kmIdaVolta
+    this.kmInicial = props.kmInicial ?? null
+    this.kmFinal = props.kmFinal ?? null
+    this.kmPercorrido = props.kmPercorrido ?? null
+    this.dataFim = props.dataFim ?? null
     this.status = props.status
     this.observacaoGestor = props.observacaoGestor
     this.createdAt = props.createdAt
@@ -61,7 +73,31 @@ export class Reserva {
     return this.status === 'APROVADO'
   }
 
+  estaConcluida(): boolean {
+    return this.status === 'CONCLUIDA'
+  }
+
+  calcularKmPercorrido(kmFinal: number, kmInicial = this.kmInicial ?? 0): number {
+    return kmFinal - kmInicial
+  }
+
+  validarKmFinal(kmFinal: number, kmInicial = this.kmInicial ?? 0): { ok: true } | { ok: false; message: string } {
+    if (!Number.isFinite(kmFinal) || kmFinal < 0) {
+      return { ok: false, message: 'Informe um km final válido.' }
+    }
+    if (kmFinal < kmInicial) {
+      return { ok: false, message: 'O km final não pode ser menor que o km inicial.' }
+    }
+    return { ok: true }
+  }
+
   podeSerAprovadaPor(usuario: Usuario): boolean {
+    return usuario.podeAprovarReserva() && usuario.podeVisualizarEmpresa(this.empresaId)
+  }
+
+  podeSerFinalizadaPor(usuario: Usuario): boolean {
+    if (this.status !== 'APROVADO') return false
+    if (usuario.id === this.motoristaId) return true
     return usuario.podeAprovarReserva() && usuario.podeVisualizarEmpresa(this.empresaId)
   }
 
@@ -71,6 +107,27 @@ export class Reserva {
   }
 
   withStatus(status: StatusReserva, observacaoGestor?: string | null): Reserva {
+    return this.clone({
+      status,
+      observacaoGestor: observacaoGestor ?? this.observacaoGestor,
+      updatedAt: new Date().toISOString(),
+    })
+  }
+
+  finalizar(kmFinal: number, kmInicial = this.kmInicial ?? 0): Reserva {
+    const validation = this.validarKmFinal(kmFinal, kmInicial)
+    if (!validation.ok) throw new Error(validation.message)
+    return this.clone({
+      kmInicial,
+      kmFinal,
+      kmPercorrido: kmFinal - kmInicial,
+      dataFim: new Date().toISOString(),
+      status: 'CONCLUIDA',
+      updatedAt: new Date().toISOString(),
+    })
+  }
+
+  private clone(overrides: Partial<ReservaProps>): Reserva {
     return new Reserva({
       id: this.id,
       empresaId: this.empresaId,
@@ -79,13 +136,18 @@ export class Reserva {
       dataViagem: this.dataViagem,
       destino: this.destino,
       kmIdaVolta: this.kmIdaVolta,
-      status,
-      observacaoGestor: observacaoGestor ?? this.observacaoGestor,
+      kmInicial: this.kmInicial,
+      kmFinal: this.kmFinal,
+      kmPercorrido: this.kmPercorrido,
+      dataFim: this.dataFim,
+      status: this.status,
+      observacaoGestor: this.observacaoGestor,
       createdAt: this.createdAt,
-      updatedAt: new Date().toISOString(),
+      updatedAt: this.updatedAt,
       veiculoPlaca: this.veiculoPlaca ?? undefined,
       veiculoModelo: this.veiculoModelo ?? undefined,
       motoristaNome: this.motoristaNome ?? undefined,
+      ...overrides,
     })
   }
 
@@ -98,6 +160,10 @@ export class Reserva {
       data_viagem: this.dataViagem,
       destino: this.destino,
       km_ida_volta: this.kmIdaVolta,
+      km_inicial: this.kmInicial,
+      km_final: this.kmFinal,
+      km_percorrido: this.kmPercorrido,
+      data_fim: this.dataFim,
       status: this.status,
       observacao_gestor: this.observacaoGestor,
       created_at: this.createdAt,

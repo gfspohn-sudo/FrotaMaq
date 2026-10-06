@@ -29,4 +29,15 @@ export async function rejeitarReserva(profile: Usuario | null, id: string, obser
   return { ...result, error: asServiceError(result.error) }
 }
 
+export async function finalizarViagem(profile: Usuario | null, id: string, kmFinal: number) {
+  const result = await container.finalizarViagem.execute(profile, id, kmFinal)
+  if (result.data) notifyDataRefresh()
+  return { ...result, error: asServiceError(result.error) }
+}
+
+export async function getDriverTripHistory(profile: Usuario | null) {
+  const result = await container.getDriverTripHistory.execute(profile)
+  return { ...result, error: asServiceError(result.error) }
+}
+
 export type { Reserva }

@@ -4,6 +4,8 @@ import { Veiculo } from '@/domain/entities/Veiculo'
 type VeiculoRow = VeiculoDTO & {
   nome_exibicao?: string | null
   quilometragem_atual?: number | null
+  intervalo_manutencao_km?: number | null
+  intervalo_manutencao_dias?: number | null
 }
 
 export class VeiculoMapper {
@@ -25,11 +27,13 @@ export class VeiculoMapper {
     switch (status) {
       case 'em_manutencao':
         return 'EM_MANUTENCAO'
-      case 'fora_de_operacao':
-        return 'INATIVO'
-      case 'em_operacao':
+      case 'em_viagem':
+        return 'EM_VIAGEM'
+      case 'parado':
+        return 'PARADO'
+      case 'disponivel':
       default:
-        return 'ATIVO'
+        return 'DISPONIVEL'
     }
   }
 
@@ -38,18 +42,20 @@ export class VeiculoMapper {
     switch (status) {
       case 'em_manutencao':
         return ['EM_MANUTENCAO', 'em_manutencao', 'MANUTENCAO', 'Manutenção', 'Em manutenção']
-      case 'fora_de_operacao':
-        return ['INATIVO', 'inativo', 'FORA_DE_OPERACAO', 'fora_de_operacao']
-      case 'em_operacao':
+      case 'em_viagem':
+        return ['EM_VIAGEM', 'em_viagem']
+      case 'parado':
+        return ['PARADO', 'parado', 'INATIVO', 'inativo', 'FORA_DE_OPERACAO', 'fora_de_operacao']
+      case 'disponivel':
       default:
-        return ['ATIVO', 'ativo', 'EM_OPERACAO', 'em_operacao', 'DISPONIVEL', 'disponivel']
+        return ['DISPONIVEL', 'disponivel', 'ATIVO', 'ativo', 'EM_OPERACAO', 'em_operacao']
     }
   }
 
   /** Normaliza qualquer valor de `veiculos.status` para o enum da aplicação. */
   static normalizeStatusFromDb(status: string | undefined | null): StatusVeiculo {
     const raw = (status ?? '').trim()
-    if (!raw) return 'em_operacao'
+    if (!raw) return 'disponivel'
 
     const canonical = raw
       .normalize('NFD')
@@ -57,20 +63,23 @@ export class VeiculoMapper {
       .toLowerCase()
       .replace(/[\s-]+/g, '_')
     if (['ativo', 'em_operacao', 'disponivel', 'operacao'].includes(canonical)) {
-      return 'em_operacao'
+      return 'disponivel'
+    }
+    if (['em_viagem'].includes(canonical)) {
+      return 'em_viagem'
     }
     if (['em_manutencao', 'manutencao'].includes(canonical)) {
       return 'em_manutencao'
     }
     if (['inativo', 'fora_de_operacao', 'parado'].includes(canonical)) {
-      return 'fora_de_operacao'
+      return 'parado'
     }
 
-    if (raw === 'em_manutencao' || raw === 'em_operacao' || raw === 'fora_de_operacao') {
+    if (raw === 'em_manutencao' || raw === 'disponivel' || raw === 'em_viagem' || raw === 'parado') {
       return raw
     }
 
-    return 'em_operacao'
+    return 'disponivel'
   }
 
   private static mapStatusFromDb(status: string | undefined): StatusVeiculo {
@@ -89,7 +98,9 @@ export class VeiculoMapper {
       ano_carroceria: input.ano_carroceria ?? null,
       quilometragem_atual: input.km_atual ?? 0,
       km_atual: input.km_atual ?? 0,
-      status: VeiculoMapper.mapStatusToDb(input.status ?? 'em_operacao'),
+      intervalo_manutencao_km: input.intervalo_manutencao_km ?? 10000,
+      intervalo_manutencao_dias: input.intervalo_manutencao_dias ?? 180,
+      status: VeiculoMapper.mapStatusToDb(input.status ?? 'disponivel'),
     }
   }
 
@@ -112,6 +123,8 @@ export class VeiculoMapper {
       payload.nome_exibicao = `${input.marca ?? ''} ${input.modelo ?? ''}`.trim()
     }
     if (input.empresa_id != null) payload.empresa_id = input.empresa_id
+    if (input.intervalo_manutencao_km != null) payload.intervalo_manutencao_km = input.intervalo_manutencao_km
+    if (input.intervalo_manutencao_dias != null) payload.intervalo_manutencao_dias = input.intervalo_manutencao_dias
 
     return payload
   }
@@ -134,6 +147,8 @@ export class VeiculoMapper {
       fotoUrl: row.foto_url ?? null,
       createdAt: row.created_at,
       empresaNome: row.empresas?.nome ?? null,
+      intervaloManutencaoKm: row.intervalo_manutencao_km ?? 10000,
+      intervaloManutencaoDias: row.intervalo_manutencao_dias ?? 180,
     })
   }
 

@@ -17,6 +17,8 @@ export interface VeiculoProps {
   fotoUrl: string | null
   createdAt: string
   empresaNome?: string | null
+  intervaloManutencaoKm?: number
+  intervaloManutencaoDias?: number
 }
 
 /** Entidade de domínio — Veículo da frota. */
@@ -34,6 +36,8 @@ export class Veiculo {
   readonly status: StatusVeiculo
   readonly fotoUrl: string | null
   readonly createdAt: string
+  readonly intervaloManutencaoKm: number
+  readonly intervaloManutencaoDias: number
 
   constructor(props: VeiculoProps) {
     this.id = props.id
@@ -49,6 +53,8 @@ export class Veiculo {
     this.status = props.status
     this.fotoUrl = props.fotoUrl
     this.createdAt = props.createdAt
+    this.intervaloManutencaoKm = props.intervaloManutencaoKm ?? 10000
+    this.intervaloManutencaoDias = props.intervaloManutencaoDias ?? 180
   }
 
   /** @deprecated Use nomeExibicao() com nome da empresa. */
@@ -61,8 +67,22 @@ export class Veiculo {
     return `${empresaNome.trim()} - ${this.placa.trim().toUpperCase()}`
   }
 
+  placaCurta(): string {
+    const digits = this.placa.replace(/[^A-Za-z0-9]/g, '')
+    return digits.slice(-4).toUpperCase()
+  }
+
+  estaDisponivel(): boolean {
+    return this.status === 'disponivel'
+  }
+
+  /** Alias de disponibilidade para reserva. */
   estaEmOperacao(): boolean {
-    return this.status === 'em_operacao'
+    return this.estaDisponivel()
+  }
+
+  estaEmViagem(): boolean {
+    return this.status === 'em_viagem'
   }
 
   estaEmManutencao(): boolean {
@@ -70,7 +90,7 @@ export class Veiculo {
   }
 
   estaParado(): boolean {
-    return this.status === 'fora_de_operacao'
+    return this.status === 'parado'
   }
 
   validarNovaQuilometragem(km: number): { ok: true } | { ok: false; message: string } {
@@ -95,6 +115,14 @@ export class Veiculo {
     return this.clone({ status: 'em_manutencao' })
   }
 
+  iniciarViagem(): Veiculo {
+    return this.clone({ status: 'em_viagem' })
+  }
+
+  liberarAposViagem(): Veiculo {
+    return this.clone({ status: 'disponivel' })
+  }
+
   private clone(overrides: Partial<VeiculoProps>): Veiculo {
     return new Veiculo({
       id: this.id,
@@ -110,6 +138,8 @@ export class Veiculo {
       status: overrides.status ?? this.status,
       fotoUrl: this.fotoUrl,
       createdAt: this.createdAt,
+      intervaloManutencaoKm: this.intervaloManutencaoKm,
+      intervaloManutencaoDias: this.intervaloManutencaoDias,
     })
   }
 
@@ -140,6 +170,8 @@ export class Veiculo {
       ano_carroceria: this.anoCarroceria,
       quilometragem_atual: km,
       km_atual: km,
+      intervalo_manutencao_km: this.intervaloManutencaoKm,
+      intervalo_manutencao_dias: this.intervaloManutencaoDias,
       status: this.status,
       created_at: this.createdAt,
     }

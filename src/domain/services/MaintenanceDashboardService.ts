@@ -131,20 +131,28 @@ export class MaintenanceDashboardService {
 }
 
 export interface FleetSummaryResult {
-  ativos: number
+  total: number
+  disponiveis: number
+  emViagem: number
   emManutencao: number
   parados: number
-  total: number
+  comAlerta: number
+  /** @deprecated use disponiveis */
+  ativos: number
 }
 
 /** Domain Service — resumo da frota. */
 export class FleetSummaryService {
-  static calcular(veiculos: Veiculo[]): FleetSummaryResult {
+  static calcular(veiculos: Veiculo[], comAlerta = 0): FleetSummaryResult {
+    const disponiveis = veiculos.filter(v => v.estaDisponivel()).length
     return {
-      ativos: veiculos.filter(v => v.estaEmOperacao()).length,
+      total: veiculos.length,
+      disponiveis,
+      emViagem: veiculos.filter(v => v.estaEmViagem()).length,
       emManutencao: veiculos.filter(v => v.estaEmManutencao()).length,
       parados: veiculos.filter(v => v.estaParado()).length,
-      total: veiculos.length,
+      comAlerta,
+      ativos: disponiveis,
     }
   }
 }

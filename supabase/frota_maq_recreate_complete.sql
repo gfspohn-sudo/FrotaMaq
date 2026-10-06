@@ -27,6 +27,8 @@ DROP FUNCTION IF EXISTS public.get_user_empresa_id() CASCADE;
 DROP FUNCTION IF EXISTS public.is_super_admin() CASCADE;
 DROP FUNCTION IF EXISTS public.auth_user_perfil() CASCADE;
 DROP FUNCTION IF EXISTS public.auth_user_empresa_id() CASCADE;
+DROP FUNCTION IF EXISTS public.calcular_proxima_manutencao() CASCADE;
+DROP FUNCTION IF EXISTS public.finalizar_viagem_atualizar_veiculo() CASCADE;
 
 -- Views legadas
 DROP VIEW IF EXISTS public.profiles CASCADE;
@@ -68,7 +70,8 @@ CREATE TYPE public.perfil_usuario AS ENUM (
 CREATE TYPE public.status_reserva AS ENUM (
   'PENDENTE',
   'APROVADO',
-  'REJEITADO'
+  'REJEITADO',
+  'CONCLUIDA'
 );
 
 CREATE TYPE public.status_solicitacao AS ENUM (
@@ -111,7 +114,9 @@ CREATE TABLE public.veiculos (
   ano_modelo           INTEGER,
   ano_carroceria       INTEGER,
   quilometragem_atual  INTEGER NOT NULL DEFAULT 0,
-  status               TEXT NOT NULL DEFAULT 'ATIVO',
+  intervalo_manutencao_km INTEGER NOT NULL DEFAULT 10000,
+  intervalo_manutencao_dias INTEGER NOT NULL DEFAULT 180,
+  status               TEXT NOT NULL DEFAULT 'DISPONIVEL',
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (empresa_id, placa)
 );
@@ -120,14 +125,25 @@ CREATE INDEX idx_veiculos_empresa_id ON public.veiculos(empresa_id);
 
 -- Manutenções
 CREATE TABLE public.manutencoes (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  empresa_id       UUID NOT NULL REFERENCES public.empresas(id) ON DELETE CASCADE,
-  veiculo_id       UUID NOT NULL REFERENCES public.veiculos(id) ON DELETE CASCADE,
-  descricao        TEXT NOT NULL,
-  valor_total      NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
-  data_manutencao  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  tipo             TEXT NOT NULL DEFAULT 'PREVENTIVA',
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  empresa_id             UUID NOT NULL REFERENCES public.empresas(id) ON DELETE CASCADE,
+  veiculo_id             UUID NOT NULL REFERENCES public.veiculos(id) ON DELETE CASCADE,
+  descricao              TEXT NOT NULL,
+  valor_total            NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  valor_mao_de_obra      NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  valor_pecas            NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  pecas_trocadas         JSONB NOT NULL DEFAULT '[]'::jsonb,
+  km_atual_veiculo       INTEGER,
+  observacao             TEXT,
+  data_manutencao        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  data_proxima_manutencao TIMESTAMPTZ,
+  proxima_manutencao_km  INTEGER,
+  tipo                   TEXT NOT NULL DEFAULT 'PREVENTIVA',
+  status                 TEXT DEFAULT 'PENDENTE',
+  local_manutencao       TEXT,
+  responsavel            TEXT,
+  forma_pagamento        TEXT,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_manutencoes_empresa_id ON public.manutencoes(empresa_id);
@@ -142,6 +158,10 @@ CREATE TABLE public.reservas (
   data_viagem        TIMESTAMPTZ NOT NULL,
   destino            TEXT NOT NULL,
   km_ida_volta       INTEGER NOT NULL CHECK (km_ida_volta > 0),
+  km_inicial         INTEGER,
+  km_final           INTEGER,
+  km_percorrido      INTEGER,
+  data_fim           TIMESTAMPTZ,
   status             public.status_reserva NOT NULL DEFAULT 'PENDENTE',
   observacao_gestor  TEXT,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -360,7 +380,10 @@ CREATE POLICY "manutencoes_select" ON public.manutencoes
   FOR SELECT TO authenticated
   USING (
     public.auth_user_perfil() = 'super_admin'
-    OR empresa_id = public.auth_user_empresa_id()
+    OR (
+      empresa_id = public.auth_user_empresa_id()
+      AND public.auth_user_perfil() IN ('gestor', 'mecanico')
+    )
   );
 
 CREATE POLICY "manutencoes_insert" ON public.manutencoes
@@ -501,6 +524,104 @@ GRANT SELECT ON public.chaves_convite TO anon;
 GRANT USAGE ON TYPE public.perfil_usuario TO anon, authenticated, service_role;
 GRANT USAGE ON TYPE public.status_reserva TO anon, authenticated, service_role;
 GRANT USAGE ON TYPE public.status_solicitacao TO anon, authenticated, service_role;
+
+-- =============================================================================
+-- 4b. TRIGGERS — próxima manutenção e KM de viagem
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.calcular_proxima_manutencao()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_km INTEGER;
+  v_intervalo_km INTEGER;
+  v_intervalo_dias INTEGER;
+BEGIN
+  SELECT COALESCE(quilometragem_atual, 0),
+         COALESCE(intervalo_manutencao_km, 10000),
+         COALESCE(intervalo_manutencao_dias, 180)
+    INTO v_km, v_intervalo_km, v_intervalo_dias
+  FROM public.veiculos
+  WHERE id = NEW.veiculo_id;
+
+  IF NEW.km_atual_veiculo IS NULL THEN
+    NEW.km_atual_veiculo := v_km;
+  END IF;
+
+  IF NEW.proxima_manutencao_km IS NULL THEN
+    NEW.proxima_manutencao_km := COALESCE(NEW.km_atual_veiculo, v_km) + v_intervalo_km;
+  END IF;
+
+  IF NEW.data_proxima_manutencao IS NULL THEN
+    NEW.data_proxima_manutencao := COALESCE(NEW.data_manutencao, NOW())
+      + make_interval(days => v_intervalo_dias);
+  END IF;
+
+  IF COALESCE(NEW.valor_total, 0) = 0 THEN
+    NEW.valor_total := COALESCE(NEW.valor_mao_de_obra, 0) + COALESCE(NEW.valor_pecas, 0);
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_calcular_proxima_manutencao
+  BEFORE INSERT ON public.manutencoes
+  FOR EACH ROW
+  EXECUTE FUNCTION public.calcular_proxima_manutencao();
+
+CREATE OR REPLACE FUNCTION public.finalizar_viagem_atualizar_veiculo()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.km_final IS NOT NULL
+     AND (TG_OP = 'INSERT' OR OLD.km_final IS NULL OR NEW.km_final IS DISTINCT FROM OLD.km_final)
+  THEN
+    IF NEW.km_inicial IS NULL THEN
+      SELECT COALESCE(quilometragem_atual, 0) INTO NEW.km_inicial
+      FROM public.veiculos WHERE id = NEW.veiculo_id;
+    END IF;
+
+    IF NEW.km_final < NEW.km_inicial THEN
+      RAISE EXCEPTION 'km_final (%) não pode ser menor que km_inicial (%)', NEW.km_final, NEW.km_inicial;
+    END IF;
+
+    NEW.km_percorrido := NEW.km_final - NEW.km_inicial;
+    NEW.data_fim := COALESCE(NEW.data_fim, NOW());
+    NEW.status := 'CONCLUIDA';
+
+    UPDATE public.veiculos
+    SET quilometragem_atual = NEW.km_final,
+        status = 'DISPONIVEL'
+    WHERE id = NEW.veiculo_id
+      AND empresa_id = NEW.empresa_id;
+  END IF;
+
+  IF NEW.status = 'APROVADO'
+     AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM NEW.status)
+  THEN
+    IF NEW.km_inicial IS NULL THEN
+      SELECT COALESCE(quilometragem_atual, 0) INTO NEW.km_inicial
+      FROM public.veiculos WHERE id = NEW.veiculo_id;
+    END IF;
+
+    UPDATE public.veiculos
+    SET status = 'EM_VIAGEM'
+    WHERE id = NEW.veiculo_id
+      AND empresa_id = NEW.empresa_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_finalizar_viagem
+  BEFORE INSERT OR UPDATE ON public.reservas
+  FOR EACH ROW
+  EXECUTE FUNCTION public.finalizar_viagem_atualizar_veiculo();
 
 -- =============================================================================
 -- 5. SEED INICIAL — SUPER ADMIN GLOBAL

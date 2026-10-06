@@ -20,7 +20,7 @@ const novoVeiculo = {
   marca: 'Volvo',
   ano: 2022,
   km_atual: 1000,
-  status: 'em_operacao' as const,
+  status: 'disponivel' as const,
   empresa_id: 'emp-1',
 }
 

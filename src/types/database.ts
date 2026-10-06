@@ -1,7 +1,8 @@
 /** Tipos alinhados ao schema PostgreSQL/Supabase (FrotaMaq). */
 
 export type PerfilUsuario = 'super_admin' | 'gestor' | 'mecanico' | 'motorista'
-export type StatusVeiculo = 'em_operacao' | 'em_manutencao' | 'fora_de_operacao'
+export type StatusVeiculo = 'disponivel' | 'em_viagem' | 'em_manutencao' | 'parado'
+export type PrioridadeAlerta = 'CRITICA' | 'ALTA' | 'MEDIA'
 export type TipoManutencao = 'preventiva' | 'corretiva' | 'preditiva'
 export type StatusManutencaoDb = 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA'
 export type StatusManutencao = 'pendente' | 'em_andamento' | 'concluida' | 'cancelada'
@@ -9,7 +10,13 @@ export type MetodoPagamento = 'cartao' | 'pix' | 'boleto' | 'faturado' | 'dinhei
 export type TipoAlerta = 'vencida' | 'proxima'
 export type StatusAlerta = 'ativo' | 'resolvido'
 export type MaintenanceUrgency = 'ok' | 'warning' | 'overdue'
-export type StatusReserva = 'PENDENTE' | 'APROVADO' | 'REJEITADO'
+export type StatusReserva = 'PENDENTE' | 'APROVADO' | 'REJEITADO' | 'CONCLUIDA'
+
+export interface PecaTrocada {
+  descricao: string
+  quantidade: number
+  valor_unitario: number
+}
 export type StatusSolicitacaoRelatorio = 'PENDENTE' | 'APROVADO' | 'REJEITADO'
 export type PerfilChaveConvite = 'motorista' | 'mecanico'
 
@@ -41,6 +48,8 @@ export interface Veiculo {
   ano_carroceria?: number | null
   quilometragem_atual: number
   km_atual?: number | null
+  intervalo_manutencao_km?: number | null
+  intervalo_manutencao_dias?: number | null
   status: StatusVeiculo
   created_at: string
   /** Derivados no mapper a partir de `nome_exibicao` (compatibilidade UI). */
@@ -58,6 +67,10 @@ export interface Reserva {
   data_viagem: string
   destino: string
   km_ida_volta: number
+  km_inicial?: number | null
+  km_final?: number | null
+  km_percorrido?: number | null
+  data_fim?: string | null
   status: StatusReserva
   observacao_gestor: string | null
   created_at: string
@@ -83,6 +96,12 @@ export interface Manutencao {
   valor_total: number
   data_manutencao: string
   data_proxima_manutencao?: string | null
+  km_atual_veiculo?: number | null
+  pecas_trocadas?: PecaTrocada[]
+  valor_mao_de_obra?: number | null
+  valor_pecas?: number | null
+  observacao?: string | null
+  proxima_manutencao_km?: number | null
   tipo: string
   status: StatusManutencao
   forma_pagamento?: string | null
@@ -119,6 +138,12 @@ export interface NovaManutencao {
   responsavel?: string | null
   forma_pagamento?: string | null
   data_proxima_manutencao?: string | null
+  km_atual_veiculo?: number | null
+  pecas_trocadas?: PecaTrocada[]
+  valor_mao_de_obra?: number
+  valor_pecas?: number
+  observacao?: string | null
+  proxima_manutencao_km?: number | null
 }
 
 /** Payload de criação — marca/modelo convertidos para `nome_exibicao` no mapper. */
@@ -132,6 +157,8 @@ export interface NovoVeiculo {
   ano_carroceria?: number | null
   km_atual: number
   status: StatusVeiculo
+  intervalo_manutencao_km?: number
+  intervalo_manutencao_dias?: number
 }
 
 export interface Alerta {
@@ -172,18 +199,27 @@ export const STATUS_RESERVA_LABELS: Record<StatusReserva, string> = {
   PENDENTE: 'Pendente',
   APROVADO: 'Aprovado',
   REJEITADO: 'Rejeitado',
+  CONCLUIDA: 'Concluída',
 }
 
 export const STATUS_VEICULO_LABELS: Record<StatusVeiculo, string> = {
-  em_operacao: 'Em operação',
+  disponivel: 'Disponível',
+  em_viagem: 'Em viagem',
   em_manutencao: 'Em manutenção',
-  fora_de_operacao: 'Fora de operação',
+  parado: 'Parado',
 }
 
 export const STATUS_VEICULO_COLORS: Record<StatusVeiculo, string> = {
-  em_operacao: 'bg-success/10 text-success',
+  disponivel: 'bg-success/10 text-success',
+  em_viagem: 'bg-action/10 text-action',
   em_manutencao: 'bg-warning/10 text-warning',
-  fora_de_operacao: 'bg-danger/10 text-danger',
+  parado: 'bg-danger/10 text-danger',
+}
+
+export const PRIORIDADE_ALERTA_LABELS: Record<PrioridadeAlerta, string> = {
+  CRITICA: 'Crítica',
+  ALTA: 'Alta',
+  MEDIA: 'Média',
 }
 
 export const TIPO_MANUTENCAO_LABELS: Record<TipoManutencao, string> = {

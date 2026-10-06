@@ -90,6 +90,7 @@ export class SolicitarReservaUseCase {
       data_viagem: input.data_viagem,
       destino: input.destino,
       km_ida_volta: input.km_ida_volta,
+      km_inicial: veiculo.kmAtual.value,
     })
 
     return { data: data?.toDTO() ?? null, error }
@@ -98,9 +99,11 @@ export class SolicitarReservaUseCase {
 
 export class AtualizarStatusReservaUseCase {
   private readonly reservaRepo: IReservaRepository
+  private readonly veiculoRepo?: IVeiculoRepository
 
-  constructor(reservaRepo: IReservaRepository) {
+  constructor(reservaRepo: IReservaRepository, veiculoRepo?: IVeiculoRepository) {
     this.reservaRepo = reservaRepo
+    this.veiculoRepo = veiculoRepo
   }
 
   async execute(
@@ -127,6 +130,72 @@ export class AtualizarStatusReservaUseCase {
     }
 
     const { data, error } = await this.reservaRepo.updateStatus(reservaId, status, observacaoGestor, scoped.empresaId)
+
+    if (!error && data && status === 'APROVADO' && this.veiculoRepo) {
+      await this.veiculoRepo.update(
+        data.veiculoId,
+        { status: 'em_viagem' },
+        scoped.empresaId,
+      )
+    }
+
     return { data: data?.toDTO() ?? null, error }
+  }
+}
+
+export class FinalizarViagemUseCase {
+  private readonly reservaRepo: IReservaRepository
+  private readonly veiculoRepo: IVeiculoRepository
+
+  constructor(reservaRepo: IReservaRepository, veiculoRepo: IVeiculoRepository) {
+    this.reservaRepo = reservaRepo
+    this.veiculoRepo = veiculoRepo
+  }
+
+  async execute(profile: UsuarioProfile | null, reservaId: string, kmFinal: number) {
+    const usuario = UsuarioFactory.fromProfile(profile)
+    const { scoped, error: scopeError } = TenantScopeService.resolveQueryScope(profile)
+    if (scopeError) return { data: null, error: scopeError }
+
+    const existing = await this.reservaRepo.findById(reservaId, scoped.empresaId)
+    if (existing.error || !existing.data) {
+      return { data: null, error: existing.error ?? new Error('Reserva não encontrada.') }
+    }
+
+    const reserva = existing.data
+    if (!reserva.podeSerFinalizadaPor(usuario)) {
+      return { data: null, error: new Error('Sem permissão para finalizar esta viagem.') }
+    }
+
+    const veiculoRes = await this.veiculoRepo.findById(reserva.veiculoId, scoped.empresaId)
+    const veiculo = veiculoRes.data
+    const kmInicial = reserva.kmInicial ?? veiculo?.kmAtual.value ?? 0
+    const validation = reserva.validarKmFinal(kmFinal, kmInicial)
+    if (!validation.ok) {
+      return { data: null, error: new Error(validation.message) }
+    }
+
+    const { data, error } = await this.reservaRepo.finalizarViagem(
+      reservaId,
+      kmFinal,
+      kmInicial,
+      scoped.empresaId,
+    )
+
+    if (error || !data) {
+      return { data: null, error: error ?? new Error('Não foi possível finalizar a viagem.') }
+    }
+
+    const distancia = data.calcularKmPercorrido(kmFinal, kmInicial)
+    if (veiculo) {
+      const novaKm = Math.max(veiculo.kmAtual.value, kmFinal)
+      await this.veiculoRepo.update(
+        veiculo.id,
+        { km_atual: novaKm, status: 'disponivel' },
+        scoped.empresaId,
+      )
+    }
+
+    return { data: { ...data.toDTO(), km_percorrido: distancia }, error: null }
   }
 }
