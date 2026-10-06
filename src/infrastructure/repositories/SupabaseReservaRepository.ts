@@ -54,14 +54,28 @@ export class SupabaseReservaRepository implements IReservaRepository {
     }
   }
 
-  async updateStatus(id: string, status: StatusReserva, observacaoGestor?: string | null, empresaId?: string) {
+  async updateStatus(
+    id: string,
+    status: StatusReserva,
+    observacaoGestor?: string | null,
+    empresaId?: string,
+    motivoRecusa?: string | null,
+  ) {
+    const payload: Record<string, unknown> = {
+      status,
+      observacao_gestor: observacaoGestor ?? null,
+      updated_at: new Date().toISOString(),
+    }
+    if (status === 'REJEITADO') {
+      payload.motivo_recusa = motivoRecusa ?? observacaoGestor ?? null
+    }
+    if (status === 'APROVADO') {
+      payload.motivo_recusa = null
+    }
+
     let query = supabase
       .from('reservas')
-      .update({
-        status,
-        observacao_gestor: observacaoGestor ?? null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(payload)
       .eq('id', id)
     if (empresaId) query = query.eq('empresa_id', empresaId)
     const { data, error } = await query.select(RESERVA_SELECT).single()

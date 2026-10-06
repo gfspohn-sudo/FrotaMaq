@@ -129,14 +129,43 @@ export class AtualizarStatusReservaUseCase {
       return { data: null, error: new Error('Reserva fora do seu escopo.') }
     }
 
-    const { data, error } = await this.reservaRepo.updateStatus(reservaId, status, observacaoGestor, scoped.empresaId)
+    if (!existing.data.estaPendente()) {
+      return { data: null, error: new Error('Somente reservas pendentes podem ser aprovadas ou recusadas.') }
+    }
 
-    if (!error && data && status === 'APROVADO' && this.veiculoRepo) {
-      await this.veiculoRepo.update(
-        data.veiculoId,
-        { status: 'em_viagem' },
-        scoped.empresaId,
-      )
+    let motivoRecusa: string | null = null
+    if (status === 'REJEITADO') {
+      const validation = ReservaValidationService.validarMotivoRecusa(observacaoGestor)
+      if (!validation.ok) {
+        return { data: null, error: new Error(validation.message) }
+      }
+      motivoRecusa = validation.value
+      observacaoGestor = validation.value
+    }
+
+    const { data, error } = await this.reservaRepo.updateStatus(
+      reservaId,
+      status,
+      status === 'REJEITADO' ? motivoRecusa : null,
+      scoped.empresaId,
+      motivoRecusa,
+    )
+
+    if (!error && data && this.veiculoRepo) {
+      if (status === 'APROVADO') {
+        await this.veiculoRepo.update(
+          data.veiculoId,
+          { status: 'em_viagem' },
+          scoped.empresaId,
+        )
+      }
+      if (status === 'REJEITADO') {
+        await this.veiculoRepo.update(
+          data.veiculoId,
+          { status: 'disponivel' },
+          scoped.empresaId,
+        )
+      }
     }
 
     return { data: data?.toDTO() ?? null, error }

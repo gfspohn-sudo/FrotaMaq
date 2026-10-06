@@ -30,7 +30,7 @@ export class GetDriverTripHistoryUseCase {
 
     if (error || !data) return { data: null, error }
 
-    const visiveis = data.filter(r => r.podeSerVisualizadaPor(usuario) && r.status !== 'REJEITADO')
+    const visiveis = data.filter(r => r.podeSerVisualizadaPor(usuario))
     const items: DriverTripHistoryItem[] = visiveis.map(r => {
       const dto = r.toDTO()
       const inicio = new Date(r.dataViagem).toLocaleString('pt-BR')

@@ -31,4 +31,12 @@ describe('ReservaValidationService', () => {
     const result = ReservaValidationService.validarQuilometragemViagem(40_000, 10_000, null)
     expect(result.ok).toBe(true)
   })
+
+  it('exige motivo não vazio na recusa', () => {
+    expect(ReservaValidationService.validarMotivoRecusa('   ').ok).toBe(false)
+    expect(ReservaValidationService.validarMotivoRecusa('').ok).toBe(false)
+    const ok = ReservaValidationService.validarMotivoRecusa('  Veículo indisponível  ')
+    expect(ok.ok).toBe(true)
+    if (ok.ok) expect(ok.value).toBe('Veículo indisponível')
+  })
 })

@@ -1,6 +1,7 @@
 import type { Reserva as ReservaDTO } from '@/types/database'
 import type { StatusReserva } from '@/domain/types/reserva'
 import type { Usuario } from '@/domain/entities/usuario/Usuario'
+import { ReservaValidationService } from '@/domain/services/ReservaValidationService'
 
 export interface ReservaProps {
   id: string
@@ -16,6 +17,7 @@ export interface ReservaProps {
   dataFim?: string | null
   status: StatusReserva
   observacaoGestor: string | null
+  motivoRecusa?: string | null
   createdAt: string
   updatedAt: string
   veiculoPlaca?: string
@@ -38,6 +40,7 @@ export class Reserva {
   readonly dataFim: string | null
   readonly status: StatusReserva
   readonly observacaoGestor: string | null
+  readonly motivoRecusa: string | null
   readonly createdAt: string
   readonly updatedAt: string
   readonly veiculoPlaca: string | null
@@ -58,6 +61,7 @@ export class Reserva {
     this.dataFim = props.dataFim ?? null
     this.status = props.status
     this.observacaoGestor = props.observacaoGestor
+    this.motivoRecusa = props.motivoRecusa ?? null
     this.createdAt = props.createdAt
     this.updatedAt = props.updatedAt
     this.veiculoPlaca = props.veiculoPlaca ?? null
@@ -106,6 +110,17 @@ export class Reserva {
     return usuario.id === this.motoristaId
   }
 
+  recusar(motivo: string): Reserva {
+    const validation = ReservaValidationService.validarMotivoRecusa(motivo)
+    if (!validation.ok) throw new Error(validation.message)
+    return this.clone({
+      status: 'REJEITADO',
+      motivoRecusa: validation.value,
+      observacaoGestor: validation.value,
+      updatedAt: new Date().toISOString(),
+    })
+  }
+
   withStatus(status: StatusReserva, observacaoGestor?: string | null): Reserva {
     return this.clone({
       status,
@@ -142,6 +157,7 @@ export class Reserva {
       dataFim: this.dataFim,
       status: this.status,
       observacaoGestor: this.observacaoGestor,
+      motivoRecusa: this.motivoRecusa,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       veiculoPlaca: this.veiculoPlaca ?? undefined,
@@ -166,6 +182,7 @@ export class Reserva {
       data_fim: this.dataFim,
       status: this.status,
       observacao_gestor: this.observacaoGestor,
+      motivo_recusa: this.motivoRecusa,
       created_at: this.createdAt,
       updated_at: this.updatedAt,
       veiculos: this.veiculoPlaca

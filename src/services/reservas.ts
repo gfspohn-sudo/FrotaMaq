@@ -17,14 +17,14 @@ export async function solicitarReserva(profile: Usuario | null, input: NovaReser
   return { ...result, error: asServiceError(result.error) }
 }
 
-export async function aprovarReserva(profile: Usuario | null, id: string, observacao?: string) {
-  const result = await container.atualizarStatusReserva.execute(profile, id, 'APROVADO', observacao)
+export async function aprovarReserva(profile: Usuario | null, id: string) {
+  const result = await container.atualizarStatusReserva.execute(profile, id, 'APROVADO')
   if (result.data) notifyDataRefresh()
   return { ...result, error: asServiceError(result.error) }
 }
 
-export async function rejeitarReserva(profile: Usuario | null, id: string, observacao?: string) {
-  const result = await container.atualizarStatusReserva.execute(profile, id, 'REJEITADO', observacao)
+export async function rejeitarReserva(profile: Usuario | null, id: string, motivoRecusa: string) {
+  const result = await container.atualizarStatusReserva.execute(profile, id, 'REJEITADO', motivoRecusa)
   if (result.data) notifyDataRefresh()
   return { ...result, error: asServiceError(result.error) }
 }

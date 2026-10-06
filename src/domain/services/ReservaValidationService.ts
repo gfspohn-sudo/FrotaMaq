@@ -32,4 +32,12 @@ export class ReservaValidationService {
 
     return { ok: true }
   }
+
+  static validarMotivoRecusa(motivo: string | null | undefined): { ok: true; value: string } | { ok: false; message: string } {
+    const value = motivo?.trim() ?? ''
+    if (!value) {
+      return { ok: false, message: 'Informe o motivo da recusa.' }
+    }
+    return { ok: true, value }
+  }
 }

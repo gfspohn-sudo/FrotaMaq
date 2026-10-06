@@ -164,6 +164,7 @@ CREATE TABLE public.reservas (
   data_fim           TIMESTAMPTZ,
   status             public.status_reserva NOT NULL DEFAULT 'PENDENTE',
   observacao_gestor  TEXT,
+  motivo_recusa      TEXT,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

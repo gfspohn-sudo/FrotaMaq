@@ -112,6 +112,11 @@ function MotoristaTripHistory() {
           {t.km_percorrido != null && (
             <p className="text-xs text-gray-500">{t.km_percorrido.toLocaleString('pt-BR')} km percorridos</p>
           )}
+          {t.status === 'REJEITADO' && (t.motivo_recusa || t.observacao_gestor) && (
+            <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+              Motivo da recusa: {t.motivo_recusa || t.observacao_gestor}
+            </p>
+          )}
         </Card>
       ))}
     </div>

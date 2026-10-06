@@ -17,6 +17,7 @@ export class ReservaMapper {
       dataFim: row.data_fim ?? null,
       status: row.status,
       observacaoGestor: row.observacao_gestor,
+      motivoRecusa: row.motivo_recusa ?? row.observacao_gestor,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       veiculoPlaca: row.veiculos?.placa,

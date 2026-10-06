@@ -73,6 +73,7 @@ export interface Reserva {
   data_fim?: string | null
   status: StatusReserva
   observacao_gestor: string | null
+  motivo_recusa?: string | null
   created_at: string
   updated_at: string
   veiculos?: { placa: string; nome_exibicao?: string; modelo?: string }
@@ -198,7 +199,7 @@ export interface SolicitacaoRelatorio {
 export const STATUS_RESERVA_LABELS: Record<StatusReserva, string> = {
   PENDENTE: 'Pendente',
   APROVADO: 'Aprovado',
-  REJEITADO: 'Rejeitado',
+  REJEITADO: 'Recusada',
   CONCLUIDA: 'Concluída',
 }
 

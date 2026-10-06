@@ -4,7 +4,8 @@ import { Calendar, MapPin, Gauge } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Input, Select } from '@/components/ui/Input'
+import { Input, Select, Textarea } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useTenant } from '@/contexts/TenantContext'
@@ -27,6 +28,9 @@ export function ReservasPage() {
   const [feedback, setFeedback] = useState('')
   const [error, setError] = useState('')
   const [kmFinalById, setKmFinalById] = useState<Record<string, string>>({})
+  const [rejecting, setRejecting] = useState<Reserva | null>(null)
+  const [motivoRecusa, setMotivoRecusa] = useState('')
+  const [rejectingSaving, setRejectingSaving] = useState(false)
   const [form, setForm] = useState({
     veiculo_id: preselectedVeiculo,
     data_viagem: '',
@@ -96,10 +100,24 @@ export function ReservasPage() {
     else load()
   }
 
-  async function handleReject(id: string) {
-    const { error: rejectError } = await rejeitarReserva(profile, id)
-    if (rejectError) setError(rejectError.message)
-    else load()
+  async function handleRejectConfirm() {
+    if (!rejecting) return
+    const motivo = motivoRecusa.trim()
+    if (!motivo) {
+      setError('Informe o motivo da recusa.')
+      return
+    }
+    setRejectingSaving(true)
+    setError('')
+    const { error: rejectError } = await rejeitarReserva(profile, rejecting.id, motivo)
+    setRejectingSaving(false)
+    if (rejectError) {
+      setError(rejectError.message)
+      return
+    }
+    setRejecting(null)
+    setMotivoRecusa('')
+    load()
   }
 
   async function handleFinish(id: string) {
@@ -166,6 +184,10 @@ export function ReservasPage() {
           </Card>
         )}
 
+        {error && !canRequestReserva && (
+          <p className="text-sm text-danger">{error}</p>
+        )}
+
         {canApproveReserva && (
           <p className="text-sm text-gray-600">Painel de aprovação — reservas pendentes da empresa</p>
         )}
@@ -209,6 +231,11 @@ export function ReservasPage() {
                     {r.usuarios?.nome && (
                       <p className="text-xs text-gray-400">Motorista: {r.usuarios.nome}</p>
                     )}
+                    {r.status === 'REJEITADO' && (r.motivo_recusa || r.observacao_gestor) && (
+                      <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+                        Motivo da recusa: {r.motivo_recusa || r.observacao_gestor}
+                      </p>
+                    )}
                   </div>
                   <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                     r.status === 'APROVADO' ? 'bg-success/10 text-success'
@@ -224,8 +251,12 @@ export function ReservasPage() {
                     <Button size="sm" className="flex-1" onClick={() => handleApprove(r.id)}>
                       Aprovar
                     </Button>
-                    <Button size="sm" variant="danger" className="flex-1" onClick={() => handleReject(r.id)}>
-                      Rejeitar
+                    <Button size="sm" variant="danger" className="flex-1" onClick={() => {
+                      setError('')
+                      setMotivoRecusa('')
+                      setRejecting(r)
+                    }}>
+                      Recusar
                     </Button>
                   </div>
                 )}
@@ -248,6 +279,54 @@ export function ReservasPage() {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={!!rejecting}
+        onClose={() => {
+          if (!rejectingSaving) {
+            setRejecting(null)
+            setMotivoRecusa('')
+          }
+        }}
+        title="Recusar reserva"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Informe o motivo da recusa. O motorista poderá consultar esta justificativa.
+          </p>
+          <Textarea
+            label="Informe o motivo da recusa:"
+            value={motivoRecusa}
+            onChange={e => setMotivoRecusa(e.target.value)}
+            placeholder="Ex.: veículo indisponível na data, conflito de agenda..."
+            required
+          />
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              disabled={rejectingSaving}
+              onClick={() => {
+                setRejecting(null)
+                setMotivoRecusa('')
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              className="flex-1"
+              disabled={rejectingSaving || !motivoRecusa.trim()}
+              onClick={handleRejectConfirm}
+            >
+              {rejectingSaving ? 'Recusando...' : 'Confirmar recusa'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
