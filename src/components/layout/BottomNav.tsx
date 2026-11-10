@@ -1,47 +1,49 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { Home, Car, Wrench, Menu, Plus, BarChart3 } from 'lucide-react'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useI18n } from '@/contexts/I18nContext'
 
 interface NavItem {
   to: string
   icon: typeof Home
-  label: string
+  labelKey: 'nav.home' | 'nav.vehicles' | 'nav.new' | 'nav.reports' | 'nav.maintenance' | 'nav.more'
   isFab?: boolean
 }
 
 export function BottomNav() {
   const location = useLocation()
+  const { t } = useI18n()
   const { canCreateMaintenance, canViewScopedReports, isMotorista, canViewMaintenance } = usePermissions()
 
   if (location.pathname === '/login') return null
 
   const items: NavItem[] = [
-    { to: '/', icon: Home, label: 'Início' },
-    { to: '/veiculos', icon: Car, label: 'Veículos' },
+    { to: '/', icon: Home, labelKey: 'nav.home' },
+    { to: '/veiculos', icon: Car, labelKey: 'nav.vehicles' },
   ]
 
   if (canCreateMaintenance) {
-    items.push({ to: '/manutencoes/nova', icon: Plus, label: 'Nova', isFab: true })
+    items.push({ to: '/manutencoes/nova', icon: Plus, labelKey: 'nav.new', isFab: true })
   } else if (isMotorista && canViewScopedReports) {
-    items.push({ to: '/relatorios', icon: BarChart3, label: 'Relatórios' })
+    items.push({ to: '/relatorios', icon: BarChart3, labelKey: 'nav.reports' })
   }
 
   if (canViewMaintenance) {
-    items.push({ to: '/manutencoes', icon: Wrench, label: 'Manutenções' })
+    items.push({ to: '/manutencoes', icon: Wrench, labelKey: 'nav.maintenance' })
   }
 
-  items.push({ to: '/mais', icon: Menu, label: 'Menu' })
+  items.push({ to: '/mais', icon: Menu, labelKey: 'nav.more' })
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white">
-      <div className="mx-auto flex max-w-3xl items-end justify-around px-2 pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/90 backdrop-blur-xl lg:hidden">
+      <div className="mx-auto flex h-16 max-w-3xl items-center justify-around px-2 pb-safe">
         {items.map(item => {
           if (item.isFab) {
             return (
               <NavLink
                 key={item.to}
                 to={item.to}
-                className="-mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-action text-white shadow-lg hover:bg-blue-700 transition-colors"
+                className="-mt-6 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-action text-white shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg active:scale-95"
               >
                 <item.icon className="h-6 w-6" />
               </NavLink>
@@ -57,11 +59,11 @@ export function BottomNav() {
               key={item.to}
               to={item.to}
               className={`flex flex-col items-center gap-0.5 px-3 py-2 text-xs transition-colors ${
-                isActive ? 'text-action font-medium' : 'text-gray-500 hover:text-gray-700'
+                isActive ? 'font-medium text-action' : 'text-fg-muted hover:text-fg'
               }`}
             >
               <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
+              <span>{t(item.labelKey)}</span>
             </NavLink>
           )
         })}

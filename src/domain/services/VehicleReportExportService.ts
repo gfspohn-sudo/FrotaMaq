@@ -1,4 +1,5 @@
 import type { TipoManutencao } from '@/types/database'
+import { toCsv } from '@/lib/csvFile'
 
 export interface VehicleReportExportRow {
   modelo: string
@@ -26,20 +27,12 @@ const CSV_HEADERS = [
   'Status',
 ] as const
 
-function escapeCsvField(value: string | number): string {
-  const str = String(value)
-  if (/[",\n\r]/.test(str)) {
-    return `"${str.replace(/"/g, '""')}"`
-  }
-  return str
-}
-
 /** Domain Service — gera conteúdo CSV do histórico operacional do veículo. */
 export class VehicleReportExportService {
   static gerarCsv(rows: VehicleReportExportRow[]): string {
-    const headerLine = CSV_HEADERS.join(';')
-    const body = rows.map(row =>
-      [
+    return toCsv(
+      CSV_HEADERS,
+      rows.map(row => [
         row.modelo,
         row.placa,
         row.dataManutencao,
@@ -50,9 +43,8 @@ export class VehicleReportExportService {
         row.responsavel,
         row.custo.toFixed(2).replace('.', ','),
         row.status,
-      ].map(escapeCsvField).join(';'),
+      ]),
     )
-    return `\uFEFF${headerLine}\n${body.join('\n')}`
   }
 
   static nomeArquivo(placa: string, ext: 'csv' | 'xlsx' = 'csv'): string {

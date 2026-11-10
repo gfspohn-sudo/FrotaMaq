@@ -128,6 +128,7 @@ export function VehicleFormModal({ isOpen, onClose, onSuccess, veiculo }: Vehicl
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? 'Editar Veículo' : 'Cadastrar Veículo'}
+      description={isEditing ? 'Atualize os dados cadastrais do veículo.' : 'Preencha os dados para incluir um veículo na frota.'}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {isSuperAdminUser && !isEditing && empresas.length > 0 && (
@@ -144,7 +145,7 @@ export function VehicleFormModal({ isOpen, onClose, onSuccess, veiculo }: Vehicl
         )}
 
         {isGestor && !isSuperAdminUser && !isEditing && (
-          <p className="rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600">
+          <p className="rounded-lg bg-surface-muted px-3 py-2 text-sm text-fg-muted">
             Veículo será vinculado automaticamente à sua empresa.
           </p>
         )}
@@ -214,7 +215,7 @@ export function VehicleFormModal({ isOpen, onClose, onSuccess, veiculo }: Vehicl
           <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" className="flex-1" disabled={loading}>
+          <Button type="submit" className="flex-1" loading={loading}>
             {loading ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar'}
           </Button>
         </div>

@@ -1,3 +1,12 @@
+import type { StatusVeiculo } from '@/types/database'
+
+const STATUS_VEICULO_PARAMS: StatusVeiculo[] = ['disponivel', 'em_viagem', 'em_manutencao', 'parado']
+
+export function parseVehicleStatusParam(value: string | null | undefined): StatusVeiculo | '' {
+  if (!value) return ''
+  return STATUS_VEICULO_PARAMS.includes(value as StatusVeiculo) ? (value as StatusVeiculo) : ''
+}
+
 /** Formato padrão: [Empresa] - [Placa Completa] */
 export function formatVehicleDisplayName(empresaNome: string, placa: string): string {
   const placaNormalizada = placa.trim().toUpperCase()

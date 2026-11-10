@@ -5,6 +5,7 @@ import { NextMaintenanceScheduleService } from '@/domain/services/NextMaintenanc
 import { UsuarioFactory } from '@/domain/entities/usuario/UsuarioFactory'
 import { ManutencaoMapper } from '@/infrastructure/mappers/ManutencaoMapper'
 import type { NovaManutencao, StatusManutencao, Usuario as UsuarioProfile } from '@/types/database'
+import { recordAuditEvent } from '@/application/services/AuditTrailService'
 
 export class CreateManutencaoUseCase {
   private readonly manutencaoRepo: IManutencaoRepository
@@ -22,24 +23,24 @@ export class CreateManutencaoUseCase {
     }
 
     const payload: NovaManutencao = { ...input }
+    const { scoped } = TenantScopeService.resolveQueryScope(profile)
+    const veiculoRes = this.veiculoRepo
+      ? await this.veiculoRepo.findById(input.veiculo_id, scoped.empresaId ?? input.empresa_id)
+      : { data: null }
+    const veiculo = veiculoRes.data
 
-    if (this.veiculoRepo) {
-      const { scoped } = TenantScopeService.resolveQueryScope(profile)
-      const veiculoRes = await this.veiculoRepo.findById(input.veiculo_id, scoped.empresaId ?? input.empresa_id)
-      const veiculo = veiculoRes.data
-      if (veiculo) {
-        const kmAtual = payload.km_atual_veiculo ?? veiculo.kmAtual.value
-        const schedule = NextMaintenanceScheduleService.calcular({
-          tipo: payload.tipo,
-          kmAtual,
-          dataManutencao: payload.data_hora,
-          intervaloKm: veiculo.intervaloManutencaoKm,
-          intervaloDias: veiculo.intervaloManutencaoDias,
-        })
-        payload.km_atual_veiculo = kmAtual
-        payload.proxima_manutencao_km = payload.proxima_manutencao_km ?? schedule.proximaManutencaoKm
-        payload.data_proxima_manutencao = payload.data_proxima_manutencao ?? schedule.dataProximaManutencao
-      }
+    if (veiculo) {
+      const kmAtual = payload.km_atual_veiculo ?? veiculo.kmAtual.value
+      const schedule = NextMaintenanceScheduleService.calcular({
+        tipo: payload.tipo,
+        kmAtual,
+        dataManutencao: payload.data_hora,
+        intervaloKm: veiculo.intervaloManutencaoKm,
+        intervaloDias: veiculo.intervaloManutencaoDias,
+      })
+      payload.km_atual_veiculo = kmAtual
+      payload.proxima_manutencao_km = payload.proxima_manutencao_km ?? schedule.proximaManutencaoKm
+      payload.data_proxima_manutencao = payload.data_proxima_manutencao ?? schedule.dataProximaManutencao
     }
 
     const mao = payload.valor_mao_de_obra ?? 0
@@ -49,7 +50,27 @@ export class CreateManutencaoUseCase {
     }
 
     const { data, error } = await this.manutencaoRepo.create(payload)
-    return { data: data ? ManutencaoMapper.toDTO(data) : null, error }
+    const dto = data ? ManutencaoMapper.toDTO(data) : null
+
+    if (!error && dto && this.veiculoRepo && veiculo && veiculo.status !== 'em_manutencao') {
+      const status = ManutencaoMapper.normalizeStatusFromDb(payload.status ?? dto.status)
+      if (status !== 'concluida' && status !== 'cancelada') {
+        await this.veiculoRepo.update(
+          veiculo.id,
+          { status: 'em_manutencao' },
+          scoped.empresaId ?? dto.empresa_id ?? undefined,
+        )
+        await recordAuditEvent({
+          acao: 'veiculo_em_manutencao',
+          profile,
+          empresaId: scoped.empresaId ?? dto.empresa_id,
+          veiculoId: veiculo.id,
+          detalhe: dto.descricao,
+        })
+      }
+    }
+
+    return { data: dto, error }
   }
 }
 
@@ -136,6 +157,14 @@ export class ConcluirManutencaoUseCase {
     if (veiculoError) {
       return { data: null, error: veiculoError }
     }
+
+    await recordAuditEvent({
+      acao: 'veiculo_liberado',
+      profile,
+      empresaId: scoped.empresaId ?? manutencao.empresaId,
+      veiculoId: manutencao.veiculoId,
+      detalhe: manutencao.descricao,
+    })
 
     return { data: ManutencaoMapper.toDTO(manutencao), error: null }
   }

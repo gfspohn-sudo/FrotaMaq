@@ -94,7 +94,12 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Nova Manutenção">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Nova Manutenção"
+      description="Registre o serviço com valores, peças e a próxima revisão quando souber."
+    >
       <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
         {!veiculoId && (
           <Select
@@ -177,7 +182,7 @@ export function MaintenanceFormModal({ isOpen, onClose, veiculoId, onSuccess }: 
           <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" className="flex-1" disabled={loading}>
+          <Button type="submit" className="flex-1" loading={loading}>
             {loading ? 'Salvando...' : 'Salvar'}
           </Button>
         </div>

@@ -17,10 +17,10 @@ const ALERTA_COLORS: Record<TipoAlerta, string> = {
 }
 
 const MANUTENCAO_COLORS: Record<StatusManutencao, string> = {
-  pendente: 'bg-blue-50 text-action',
+  pendente: 'bg-action/10 text-action',
   em_andamento: 'bg-warning/10 text-warning',
   concluida: 'bg-success/10 text-success',
-  cancelada: 'bg-gray-100 text-gray-500',
+  cancelada: 'bg-inactive/10 text-inactive',
 }
 
 export function StatusBadge({ status, type = 'veiculo' }: StatusBadgeProps) {

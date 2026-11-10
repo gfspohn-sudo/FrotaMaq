@@ -1,5 +1,6 @@
 import { AlertTriangle, WifiOff } from 'lucide-react'
-import { getSupabaseConfigError, supabaseConfig, NETWORK_ERROR_USER_MESSAGE } from '@/lib/supabase'
+import { getSupabaseConfigError, supabaseConfig, SUPABASE_UNAVAILABLE_MESSAGE } from '@/lib/supabase'
+import { isTransientSupabaseError } from '@/lib/supabaseResilience'
 
 interface SupabaseConfigAlertProps {
   connectionError?: string | null
@@ -9,18 +10,18 @@ interface SupabaseConfigAlertProps {
 export function SupabaseConfigAlert({ connectionError, networkError }: SupabaseConfigAlertProps) {
   const configError = getSupabaseConfigError()
   const isNetworkError =
-    networkError === NETWORK_ERROR_USER_MESSAGE ||
-    connectionError === NETWORK_ERROR_USER_MESSAGE ||
-    connectionError?.toLowerCase().includes('failed to fetch')
+    isTransientSupabaseError({ message: networkError ?? connectionError ?? '' })
+    || connectionError === SUPABASE_UNAVAILABLE_MESSAGE
+    || networkError === SUPABASE_UNAVAILABLE_MESSAGE
 
   if (isNetworkError) {
     return (
-      <div className="flex gap-3 rounded-lg border-2 border-danger bg-red-50 px-4 py-4 text-sm text-red-900">
-        <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
+      <div className="flex gap-3 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-4 text-sm text-amber-950 dark:bg-amber-950/40 dark:text-amber-50">
+        <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-200" />
         <div>
-          <p className="font-bold text-danger">Erro de Conexão de Rede</p>
+          <p className="font-semibold">Servidor temporariamente indisponível</p>
           <p className="mt-1 text-sm leading-relaxed">
-            {NETWORK_ERROR_USER_MESSAGE}
+            {SUPABASE_UNAVAILABLE_MESSAGE}
           </p>
         </div>
       </div>

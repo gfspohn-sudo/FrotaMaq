@@ -19,6 +19,7 @@ export interface PecaTrocada {
 }
 export type StatusSolicitacaoRelatorio = 'PENDENTE' | 'APROVADO' | 'REJEITADO'
 export type PerfilChaveConvite = 'motorista' | 'mecanico'
+export type AuditAction = 'viagem_criada' | 'veiculo_em_manutencao' | 'veiculo_liberado'
 
 export interface Empresa {
   id: string
@@ -57,6 +58,8 @@ export interface Veiculo {
   modelo?: string
   foto_url?: string | null
   empresas?: Pick<Empresa, 'nome'>
+  /** Opcional — usado na estimativa ESG quando existir no cadastro. */
+  tipo_combustivel?: 'diesel' | 'gasolina' | 'etanol' | 'eletrico' | null
 }
 
 export interface Reserva {
@@ -196,6 +199,24 @@ export interface SolicitacaoRelatorio {
   usuarios?: Pick<Usuario, 'nome'>
 }
 
+export interface AuditLog {
+  id: string
+  empresa_id: string | null
+  usuario_id: string | null
+  usuario_nome: string | null
+  veiculo_id: string | null
+  reserva_id: string | null
+  acao: AuditAction
+  descricao: string
+  created_at: string
+}
+
+export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
+  viagem_criada: 'Viagem Criada',
+  veiculo_em_manutencao: 'Status do Veículo Alterado para Em Manutenção',
+  veiculo_liberado: 'Veículo Liberado',
+}
+
 export const STATUS_RESERVA_LABELS: Record<StatusReserva, string> = {
   PENDENTE: 'Pendente',
   APROVADO: 'Aprovado',
@@ -214,7 +235,7 @@ export const STATUS_VEICULO_COLORS: Record<StatusVeiculo, string> = {
   disponivel: 'bg-success/10 text-success',
   em_viagem: 'bg-action/10 text-action',
   em_manutencao: 'bg-warning/10 text-warning',
-  parado: 'bg-danger/10 text-danger',
+  parado: 'bg-inactive/10 text-inactive',
 }
 
 export const PRIORIDADE_ALERTA_LABELS: Record<PrioridadeAlerta, string> = {

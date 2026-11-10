@@ -62,16 +62,16 @@ export function MaintenanceCard({
 
   return (
     <Card
-      className={`${URGENCY_BORDER[urgency]} ${URGENCY_BG[urgency]} ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      className={`${URGENCY_BORDER[urgency]} ${URGENCY_BG[urgency]}`}
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-gray-900">{manutencao.descricao}</p>
+          <p className="font-medium text-fg">{manutencao.descricao}</p>
           {showVehicle && (
-            <p className="text-sm text-gray-500">{getVehicleName(manutencao)}</p>
+            <p className="text-sm text-fg-muted">{getVehicleName(manutencao)}</p>
           )}
-          <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-gray-500">
+          <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-fg-muted">
             <span>{TIPO_MANUTENCAO_LABELS[tipo]}</span>
             <span>·</span>
             <span>{formatDate(dataRef)}</span>
@@ -96,21 +96,21 @@ export function MaintenanceCard({
             {showFinancialDetails && parseMaintenanceValor(valorRef) > 0 && (
               <>
                 <span>·</span>
-                <span className="font-medium text-gray-700">
+                <span className="font-medium text-fg">
                   {formatCurrency(parseMaintenanceValor(valorRef))}
                 </span>
               </>
             )}
           </div>
           {proximaData && (
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-fg-subtle">
               Próxima: {formatDate(proximaData)}
             </p>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <StatusBadge status={status} type="manutencao" />
-          {onClick && <ChevronRight className="h-4 w-4 text-gray-400" />}
+          {onClick && <ChevronRight className="h-4 w-4 text-fg-subtle" />}
         </div>
       </div>
       {actions && <div className="mt-3" onClick={e => e.stopPropagation()}>{actions}</div>}

@@ -3,6 +3,8 @@ import { Building2, Plus, Trash2 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { useAuth } from '@/contexts/AuthContext'
@@ -145,7 +147,7 @@ export function EmpresasPage() {
     <div>
       <Header title="Empresas" />
 
-      <div className="space-y-4 px-4 py-4">
+      <div className="page-section">
         {canCreateEmpresa && (
           <Button className="w-full" onClick={() => { setShowCreate(true); setFeedback('') }}>
             <Plus className="mr-2 h-4 w-4" />
@@ -159,14 +161,14 @@ export function EmpresasPage() {
 
         {createdChaves.length > 0 && (
           <section>
-            <h2 className="mb-2 text-sm font-semibold text-gray-900">Chaves de convite geradas</h2>
+            <h2 className="mb-2 text-sm font-semibold text-fg">Chaves de convite geradas</h2>
             <div className="space-y-2">
               {createdChaves.map(chave => (
                 <Card key={chave.id}>
-                  <p className="text-xs font-medium uppercase text-gray-500">
+                  <p className="text-xs font-medium uppercase text-fg-muted">
                     {chave.perfil === 'motorista' ? 'Motorista' : 'Mecânico'}
                   </p>
-                  <p className="mt-1 break-all font-mono text-sm text-gray-900">{chave.token}</p>
+                  <p className="mt-1 break-all font-mono text-sm text-fg">{chave.token}</p>
                 </Card>
               ))}
             </div>
@@ -174,15 +176,23 @@ export function EmpresasPage() {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
-          </div>
+          <ListSkeleton rows={4} />
         ) : empresas.length === 0 ? (
-          <Card className="py-8 text-center text-sm text-gray-500">
-            Nenhuma empresa cadastrada.
-          </Card>
+          <EmptyState
+            icon={Building2}
+            title="Nenhuma empresa cadastrada"
+            description="Cadastre a primeira empresa para começar o onboarding da frota."
+            action={
+              canCreateEmpresa ? (
+                <Button onClick={() => { setShowCreate(true); setFeedback('') }}>
+                  <Plus className="h-4 w-4" />
+                  Cadastrar empresa
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
-          <div className="space-y-2">
+          <div className="grid gap-3">
             {empresas.map(empresa => (
               <Card key={empresa.id} className="flex items-start justify-between gap-3">
                 <div className="flex gap-3">
@@ -190,10 +200,10 @@ export function EmpresasPage() {
                     <Building2 className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{empresa.nome}</p>
-                    <p className="text-xs text-gray-500">Slug: {empresa.slug}</p>
+                    <p className="font-medium text-fg">{empresa.nome}</p>
+                    <p className="text-xs text-fg-muted">Slug: {empresa.slug}</p>
                     {empresa.cnpj && (
-                      <p className="text-xs text-gray-500">CNPJ: {empresa.cnpj}</p>
+                      <p className="text-xs text-fg-muted">CNPJ: {empresa.cnpj}</p>
                     )}
                   </div>
                 </div>
@@ -201,7 +211,7 @@ export function EmpresasPage() {
                   <button
                     type="button"
                     onClick={() => openDeleteModal(empresa)}
-                    className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-danger"
+                    className="rounded-lg p-2 text-fg-subtle hover:bg-danger/10 hover:text-danger"
                     aria-label={`Excluir ${empresa.nome}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -234,8 +244,8 @@ export function EmpresasPage() {
             required
             placeholder="minha-empresa"
           />
-          <hr className="border-gray-200" />
-          <p className="text-sm font-medium text-gray-700">Primeiro Gestor da Empresa</p>
+          <hr className="border-border" />
+          <p className="text-sm font-medium text-fg">Primeiro Gestor da Empresa</p>
           <Input
             label="Nome do Gestor"
             value={form.gestor_nome}
@@ -275,15 +285,15 @@ export function EmpresasPage() {
       >
         {deleteTarget && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-fg-muted">
               Deseja excluir a empresa <strong>{deleteTarget.nome}</strong>?
             </p>
 
             {loadingDeps ? (
-              <p className="text-sm text-gray-500">Verificando vínculos...</p>
+              <p className="text-sm text-fg-muted">Verificando vínculos...</p>
             ) : dependencies && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-                <p className="font-medium text-gray-900">Vínculos encontrados:</p>
+              <div className="rounded-lg border border-border bg-surface-muted p-3 text-sm text-fg">
+                <p className="font-medium text-fg">Vínculos encontrados:</p>
                 <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
                   <li>{dependencies.usuarios} usuário(s) — terão empresa desvinculada</li>
                   <li>{dependencies.veiculos} veículo(s) — serão excluídos em cascata</li>

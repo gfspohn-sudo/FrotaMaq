@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { getRouterBasename } from '@/lib/appBase'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { TenantProvider } from '@/contexts/TenantContext'
+import { ThemeProvider } from '@/contexts/ThemeContext'
+import { I18nProvider } from '@/contexts/I18nContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { SupabaseInit } from '@/components/SupabaseInit'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -28,7 +30,9 @@ function SuperAdminRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter basename={getRouterBasename()}>
+    <ThemeProvider>
+      <I18nProvider>
+        <BrowserRouter basename={getRouterBasename()}>
       <SupabaseInit />
       <AuthProvider>
         <Routes>
@@ -52,6 +56,8 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
-    </BrowserRouter>
+        </BrowserRouter>
+      </I18nProvider>
+    </ThemeProvider>
   )
 }

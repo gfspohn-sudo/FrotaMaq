@@ -154,6 +154,7 @@ export async function seedTestVeiculos(empresaId?: string, profile?: Usuario | n
       inserted: 0,
       skipped: 0,
       maintenancesInserted: 0,
+      reservasInserted: 0,
       totalVehicles: 0,
     }
   }
@@ -166,6 +167,7 @@ export async function seedTestVeiculos(empresaId?: string, profile?: Usuario | n
       inserted: 0,
       skipped: 0,
       maintenancesInserted: 0,
+      reservasInserted: 0,
       totalVehicles: 0,
     }
   }
@@ -177,17 +179,19 @@ export async function seedTestVeiculos(empresaId?: string, profile?: Usuario | n
       inserted: 0,
       skipped: 0,
       maintenancesInserted: 0,
+      reservasInserted: 0,
       totalVehicles: 0,
     }
   }
 
-  const result = await seedMockFleet(scoped.empresaId)
+  const result = await seedMockFleet(scoped.empresaId, profile?.id)
   return {
     data: null,
     error: result.error?.message ?? null,
     inserted: result.vehiclesInserted,
     skipped: result.vehiclesSkipped,
     maintenancesInserted: result.maintenancesInserted,
+    reservasInserted: result.reservasInserted,
     totalVehicles: result.totalVehicles,
   }
 }

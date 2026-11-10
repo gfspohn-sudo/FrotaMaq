@@ -40,8 +40,8 @@ interface MaintenanceDetailModalProps {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-      <span className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
-      <span className="text-sm text-gray-900 sm:text-right">{value}</span>
+      <span className="text-xs font-medium uppercase tracking-wide text-fg-muted">{label}</span>
+      <span className="text-sm text-fg sm:text-right">{value}</span>
     </div>
   )
 }
@@ -75,8 +75,8 @@ export function MaintenanceDetailModal({
   return (
     <Modal isOpen={!!manutencao} onClose={onClose} title="Detalhes da Manutenção">
       <div className="space-y-4">
-        <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
-          <span className="text-sm font-medium text-gray-700">{manutencao.descricao}</span>
+        <div className="flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2">
+          <span className="text-sm font-medium text-fg">{manutencao.descricao}</span>
           <span className={`text-xs font-semibold ${URGENCY_TEXT[urgency]}`}>
             {URGENCY_LABELS[urgency]}
           </span>
@@ -115,8 +115,8 @@ export function MaintenanceDetailModal({
 
         {(manutencao.pecas_trocadas?.length ?? 0) > 0 && (
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Peças trocadas</p>
-            <ul className="space-y-1 text-sm text-gray-800">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-muted">Peças trocadas</p>
+            <ul className="space-y-1 text-sm text-fg">
               {manutencao.pecas_trocadas!.map((peca, i) => (
                 <li key={i} className="flex justify-between">
                   <span>{peca.quantidade}× {peca.descricao}</span>

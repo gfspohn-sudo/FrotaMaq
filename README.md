@@ -137,6 +137,7 @@ Variáveis necessárias (ver [`.env.example`](.env.example)):
 |----------|-------------|-----------|
 | `VITE_SUPABASE_URL` | ✅ | URL do projeto Supabase |
 | `VITE_SUPABASE_ANON_KEY` | ✅ | Chave pública (anon) |
+| `VITE_GEMINI_API_KEY` | ⚙️ | Opcional — Co-Piloto de IA (Gemini 1.5 Flash). Sem chave, usa análise local |
 | `SUPABASE_SERVICE_ROLE_KEY` | ⚙️ | Apenas para `npm run seed:users` (nunca no frontend) |
 
 Obtenha os valores em: **Supabase Dashboard → Project Settings → API**.
@@ -157,7 +158,7 @@ supabase/frota_maq_recreate_complete.sql
 npm run dev
 ```
 
-Acesse a URL exibida no terminal (geralmente `http://localhost:5173`).
+Acesse `http://localhost:5173` (porta fixa do Vite; encerre outro processo se a porta estiver ocupada).
 
 ### 5. (Opcional) Popular usuários de teste
 
@@ -350,6 +351,7 @@ Required variables (see [`.env.example`](.env.example)):
 |----------|----------|-------------|
 | `VITE_SUPABASE_URL` | ✅ | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | ✅ | Public anon key |
+| `VITE_GEMINI_API_KEY` | ⚙️ | Optional — AI co-pilot (Gemini 1.5 Flash). Falls back to local analysis |
 | `SUPABASE_SERVICE_ROLE_KEY` | ⚙️ | Only for `npm run seed:users` (never expose in frontend) |
 
 Get values from: **Supabase Dashboard → Project Settings → API**.
@@ -370,7 +372,7 @@ supabase/frota_maq_recreate_complete.sql
 npm run dev
 ```
 
-Open the URL shown in the terminal (usually `http://localhost:5173`).
+Open `http://localhost:5173` (fixed Vite port; stop other processes if the port is in use).
 
 ### 5. (Optional) Seed test users
 

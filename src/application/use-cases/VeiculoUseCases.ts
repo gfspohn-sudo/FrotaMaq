@@ -2,6 +2,7 @@ import type { IVeiculoRepository, VeiculoListFilter } from '@/domain/repositorie
 import { VeiculoMapper } from '@/infrastructure/mappers/VeiculoMapper'
 import { UsuarioFactory } from '@/domain/entities/usuario/UsuarioFactory'
 import type { NovoVeiculo, Usuario as UsuarioProfile } from '@/types/database'
+import { recordAuditEvent } from '@/application/services/AuditTrailService'
 
 const KM_ONLY_FIELDS = new Set(['km_atual'])
 
@@ -80,8 +81,33 @@ export class UpdateVeiculoUseCase {
       return deny('Sem permissão para alterar veículos.')
     }
 
+    const previous = typeof this.veiculoRepo.findById === 'function'
+      ? (await this.veiculoRepo.findById(id, empresaId)).data
+      : null
+
     const { data, error } = await this.veiculoRepo.update(id, input, empresaId)
-    return { data: data?.toDTO() ?? null, error }
+    const dto = data?.toDTO() ?? null
+
+    if (!error && dto && input.status && previous?.status !== input.status) {
+      if (input.status === 'em_manutencao') {
+        await recordAuditEvent({
+          acao: 'veiculo_em_manutencao',
+          profile,
+          empresaId: dto.empresa_id ?? empresaId,
+          veiculoId: dto.id,
+        })
+      }
+      if (input.status === 'disponivel' && (previous?.status === 'em_manutencao' || previous?.status === 'em_viagem')) {
+        await recordAuditEvent({
+          acao: 'veiculo_liberado',
+          profile,
+          empresaId: dto.empresa_id ?? empresaId,
+          veiculoId: dto.id,
+        })
+      }
+    }
+
+    return { data: dto, error }
   }
 }
 

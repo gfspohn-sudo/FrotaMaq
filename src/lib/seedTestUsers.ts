@@ -4,8 +4,8 @@ import {
   getSupabaseConfigError,
   formatSupabaseError,
   formatDetailedError,
-  NETWORK_ERROR_USER_MESSAGE,
   isFailedToFetchError,
+  classifySupabaseError,
 } from '@/lib/supabase'
 
 export function formatAuthError(
@@ -22,8 +22,21 @@ export function formatAuthError(
     return 'Credenciais inválidas. Verifique e-mail e senha.'
   }
 
-  if (isFailedToFetchError({ message, name: 'TypeError' } as Error) || lower.includes('failed to fetch')) {
-    return NETWORK_ERROR_USER_MESSAGE
+  if (
+    details?.status === 521
+    || lower.includes('failed to fetch')
+    || lower.includes('web server is down')
+    || isFailedToFetchError({ message, name: 'TypeError' } as Error)
+  ) {
+    return formatSupabaseError(message, details)
+  }
+
+  const cause = classifySupabaseError({ message, ...details })
+  if (cause === 'auth_jwt_expired' || cause === 'auth_session') {
+    return 'Sessão expirada ou inválida. Faça login novamente.'
+  }
+  if (cause === 'rls_denied') {
+    return 'Acesso negado pelas políticas de segurança (RLS).'
   }
 
   return formatDetailedError({ message, ...details })

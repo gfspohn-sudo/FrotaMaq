@@ -1,59 +1,57 @@
 import type {
   NovaManutencao,
   NovoVeiculo,
-  StatusManutencao,
-  TipoManutencao,
+  PecaTrocada,
+  StatusReserva,
+  StatusVeiculo,
 } from '@/types/database'
 
 export const MOCK_PREFIX = '[MOCK]'
 
 export const MOCK_VEICULOS: NovoVeiculo[] = [
-  { placa: 'TST-C001', modelo: 'FH 540', marca: 'Volvo', ano: 2022, km_atual: 185000, status: 'disponivel' },
-  { placa: 'TST-C002', modelo: 'R450', marca: 'Scania', ano: 2021, km_atual: 220000, status: 'disponivel' },
-  { placa: 'TST-C003', modelo: 'Actros 2651', marca: 'Mercedes-Benz', ano: 2020, km_atual: 310000, status: 'em_manutencao' },
-  { placa: 'TST-C004', modelo: 'Constellation 24.280', marca: 'Volkswagen', ano: 2019, km_atual: 420000, status: 'disponivel' },
-  { placa: 'TST-E001', modelo: '320 GC', marca: 'Caterpillar', ano: 2021, km_atual: 4200, status: 'em_manutencao' },
-  { placa: 'TST-E002', modelo: 'PC200-8', marca: 'Komatsu', ano: 2020, km_atual: 6800, status: 'disponivel' },
-  { placa: 'TST-E003', modelo: 'EC220E', marca: 'Volvo CE', ano: 2022, km_atual: 3100, status: 'parado' },
-  { placa: 'TST-T001', modelo: '6110J', marca: 'John Deere', ano: 2023, km_atual: 890, status: 'disponivel' },
-  { placa: 'TST-T002', modelo: 'T7.245', marca: 'New Holland', ano: 2022, km_atual: 1240, status: 'disponivel' },
-  { placa: 'TST-T003', modelo: 'MT 7160', marca: 'Massey Ferguson', ano: 2021, km_atual: 2100, status: 'disponivel' },
-  { placa: 'TST-U001', modelo: 'Hilux SRX', marca: 'Toyota', ano: 2023, km_atual: 45000, status: 'disponivel' },
-  { placa: 'TST-U002', modelo: 'Ranger XLT', marca: 'Ford', ano: 2022, km_atual: 62000, status: 'disponivel' },
-  { placa: 'TST-U003', modelo: 'Sprinter 415', marca: 'Mercedes-Benz', ano: 2020, km_atual: 120000, status: 'em_manutencao' },
-  { placa: 'TST-U004', modelo: 'Fiorino', marca: 'Fiat', ano: 2019, km_atual: 89000, status: 'parado' },
-  { placa: 'TST-U005', modelo: 'S10 LTZ', marca: 'Chevrolet', ano: 2024, km_atual: 18000, status: 'em_viagem' },
+  { placa: 'ABC-1D23', modelo: 'Hilux SRX', marca: 'Toyota', ano: 2023, km_atual: 45000, status: 'disponivel' },
+  { placa: 'XYZ-9876', modelo: 'Ranger XLT', marca: 'Ford', ano: 2022, km_atual: 82000, status: 'em_viagem' },
+  { placa: 'DEF-4A56', modelo: 'Sprinter 415', marca: 'Mercedes-Benz', ano: 2020, km_atual: 120000, status: 'em_manutencao' },
+  { placa: 'GHI-3210', modelo: 'Fiorino Endurance', marca: 'Fiat', ano: 2019, km_atual: 89000, status: 'parado' },
+  { placa: 'JKL-8C90', modelo: 'FH 540', marca: 'Volvo', ano: 2022, km_atual: 185000, status: 'disponivel' },
+  { placa: 'MNO-2E45', modelo: 'R450', marca: 'Scania', ano: 2021, km_atual: 220000, status: 'em_viagem' },
+  { placa: 'PQR-7F12', modelo: 'Constellation 24.280', marca: 'Volkswagen', ano: 2019, km_atual: 310000, status: 'em_manutencao' },
+  { placa: 'STU-5G78', modelo: 'S10 LTZ', marca: 'Chevrolet', ano: 2024, km_atual: 18000, status: 'disponivel' },
 ]
+
+export interface MockReservaPayload {
+  empresa_id: string
+  veiculo_id: string
+  motorista_id: string
+  data_viagem: string
+  destino: string
+  km_ida_volta: number
+  km_inicial: number | null
+  km_final: number | null
+  status: StatusReserva
+  observacao_gestor: string | null
+  motivo_recusa: string | null
+}
 
 const OFICINAS = [
   'Oficina Central FrotaMaq',
   'Auto Center Sul',
   'Mecânica Pesada Norte',
   'Concessionária Premium',
-  'Hidráulica Industrial Ltda',
 ]
 
 const MECANICOS = [
   'João Mecânico',
   'Carlos Silva',
-  'Pedro Hidráulica',
   'Ana Técnica',
   'Marcos Diesel',
 ]
 
-const FORMAS_PAGAMENTO = ['PIX', 'Faturado', 'Cartão', 'Boleto', 'Dinheiro']
-
-const DESCRICOES = [
-  'Troca de óleo e filtros',
-  'Revisão de freios e pastilhas',
-  'Alinhamento e balanceamento',
-  'Troca de correia dentada',
-  'Diagnóstico eletrônico preditivo',
-  'Reparo de suspensão',
-  'Manutenção sistema hidráulico',
-  'Revisão transmissão',
-  'Troca de pneus',
-  'Revisão ar condicionado',
+const DESTINOS = [
+  'Obra Norte — Canteiro 3',
+  'Filial Campinas',
+  'Porto de Santos',
+  'Usina São José',
 ]
 
 function daysAgo(days: number): string {
@@ -74,66 +72,144 @@ function pick<T>(arr: T[], index: number): T {
   return arr[index % arr.length]
 }
 
-function randomBetween(min: number, max: number, seed: number): number {
-  const x = Math.sin(seed * 9999) * 10000
-  const r = x - Math.floor(x)
-  return Math.floor(r * (max - min + 1)) + min
-}
-
-interface MaintenanceTemplate {
-  descricao: string
-  tipo: TipoManutencao
-  status: StatusManutencao
-  dateOffset: number
-  proximaDataOffset?: number
-}
-
-function getTemplatesForVehicle(vehicleIndex: number): MaintenanceTemplate[] {
-  const base = pick(DESCRICOES, vehicleIndex)
+function pecasPadrao(valorPecas: number): PecaTrocada[] {
+  const filtro = Math.round(valorPecas * 0.43 * 100) / 100
+  const pastilha = Math.round((valorPecas - filtro) * 100) / 100
   return [
-    { descricao: `${base} - revisão 90d`, tipo: 'preventiva', status: 'concluida', dateOffset: -90, proximaDataOffset: 30 },
-    { descricao: 'Troca de pastilhas de freio', tipo: 'corretiva', status: 'concluida', dateOffset: -60, proximaDataOffset: 60 },
-    { descricao: 'Diagnóstico preditivo sensores', tipo: 'preditiva', status: 'concluida', dateOffset: -45 },
-    { descricao: 'Troca de óleo e filtros', tipo: 'preventiva', status: 'concluida', dateOffset: -30, proximaDataOffset: -5 },
-    { descricao: 'Alinhamento e balanceamento', tipo: 'preventiva', status: 'concluida', dateOffset: -3, proximaDataOffset: 12 },
-    { descricao: 'Revisão programada', tipo: 'preventiva', status: 'pendente', dateOffset: 5, proximaDataOffset: 90 },
-    { descricao: 'Inspeção preditiva', tipo: 'preditiva', status: 'pendente', dateOffset: 15, proximaDataOffset: 120 },
-    { descricao: 'Revisão vencida pendente', tipo: 'preventiva', status: 'pendente', dateOffset: -12, proximaDataOffset: -3 },
-    { descricao: 'Reparo hidráulico urgente', tipo: 'corretiva', status: 'pendente', dateOffset: -25, proximaDataOffset: -10 },
-    { descricao: 'Manutenção em andamento', tipo: 'corretiva', status: 'em_andamento', dateOffset: -3, proximaDataOffset: 30 },
-    { descricao: 'Calibração sensores IoT', tipo: 'preditiva', status: 'em_andamento', dateOffset: -7, proximaDataOffset: 45 },
+    { descricao: 'Filtro de óleo', quantidade: 1, valor_unitario: filtro },
+    { descricao: 'Pastilha de freio', quantidade: 1, valor_unitario: pastilha },
   ]
+}
+
+function statusOf(index: number): StatusVeiculo {
+  return MOCK_VEICULOS[index]?.status ?? 'disponivel'
+}
+
+/** Manutenções para veículos em manutenção/parado e parte da frota disponível. */
+export function vehicleGetsMaintenance(index: number, status?: StatusVeiculo): boolean {
+  const s = status ?? statusOf(index)
+  return s === 'em_manutencao' || s === 'parado' || index === 0 || index === 7
 }
 
 export function generateMockManutencoes(
   veiculoId: string,
-  _kmAtual: number,
+  kmAtual: number,
   vehicleIndex: number,
   empresaId: string,
+  status?: StatusVeiculo,
 ): NovaManutencao[] {
-  const templates = getTemplatesForVehicle(vehicleIndex)
+  if (!vehicleGetsMaintenance(vehicleIndex, status)) return []
 
-  return templates.map((tpl, i) => {
-    const seed = vehicleIndex * 100 + i
-    const data_hora = tpl.dateOffset < 0 ? daysAgo(-tpl.dateOffset) : daysFromNow(tpl.dateOffset)
-    const data_proxima_manutencao = tpl.proximaDataOffset != null
-      ? (tpl.proximaDataOffset < 0 ? daysAgo(-tpl.proximaDataOffset) : daysFromNow(tpl.proximaDataOffset))
-      : undefined
+  const valorPecas = 350
+  const valorMaoDeObra = 200
+  const km = kmAtual || MOCK_VEICULOS[vehicleIndex]?.km_atual || 45000
 
-    return {
+  return [
+    {
       veiculo_id: veiculoId,
       empresa_id: empresaId,
-      tipo: tpl.tipo,
-      descricao: `${MOCK_PREFIX} ${tpl.descricao}`,
-      data_hora,
-      valor: randomBetween(500, 15000, seed),
-      status: tpl.status,
-      local_manutencao: pick(OFICINAS, seed),
-      responsavel: pick(MECANICOS, seed + 1),
-      forma_pagamento: pick(FORMAS_PAGAMENTO, seed + 2),
-      data_proxima_manutencao,
-    }
-  })
+      tipo: 'preventiva',
+      descricao: `${MOCK_PREFIX} Troca de óleo e filtros`,
+      data_hora: daysAgo(40),
+      status: 'concluida',
+      local_manutencao: pick(OFICINAS, vehicleIndex),
+      responsavel: pick(MECANICOS, vehicleIndex),
+      forma_pagamento: 'pix',
+      valor_pecas: valorPecas,
+      valor_mao_de_obra: valorMaoDeObra,
+      observacao: 'Revisão preventiva realizada conforme plano da frota.',
+      pecas_trocadas: pecasPadrao(valorPecas),
+      km_atual_veiculo: Math.max(0, km - 8000),
+      data_proxima_manutencao: daysFromNow(140),
+      proxima_manutencao_km: km + 2000,
+    },
+    {
+      veiculo_id: veiculoId,
+      empresa_id: empresaId,
+      tipo: 'corretiva',
+      descricao: `${MOCK_PREFIX} Reparo de freios`,
+      data_hora: daysAgo(12),
+      status: status === 'em_manutencao' || statusOf(vehicleIndex) === 'em_manutencao'
+        ? 'em_andamento'
+        : 'concluida',
+      local_manutencao: pick(OFICINAS, vehicleIndex + 1),
+      responsavel: pick(MECANICOS, vehicleIndex + 1),
+      forma_pagamento: 'faturado',
+      valor_pecas: valorPecas,
+      valor_mao_de_obra: valorMaoDeObra,
+      observacao: 'Correção de desgaste irregular nas pastilhas dianteiras.',
+      pecas_trocadas: pecasPadrao(valorPecas),
+      km_atual_veiculo: km,
+      data_proxima_manutencao: daysFromNow(90),
+      proxima_manutencao_km: km + 10000,
+    },
+  ]
+}
+
+export function generateMockReservas(params: {
+  veiculoId: string
+  kmAtual: number
+  vehicleIndex: number
+  empresaId: string
+  motoristaId: string
+  status?: StatusVeiculo
+}): MockReservaPayload[] {
+  const { veiculoId, vehicleIndex, empresaId, motoristaId } = params
+  const status = params.status ?? statusOf(vehicleIndex)
+  const km = params.kmAtual || MOCK_VEICULOS[vehicleIndex]?.km_atual || 45000
+  const destino = `${MOCK_PREFIX} ${pick(DESTINOS, vehicleIndex)}`
+  const records: MockReservaPayload[] = []
+
+  if (status === 'em_viagem') {
+    records.push({
+      empresa_id: empresaId,
+      veiculo_id: veiculoId,
+      motorista_id: motoristaId,
+      data_viagem: daysAgo(1),
+      destino,
+      km_ida_volta: 180,
+      km_inicial: km,
+      km_final: null,
+      status: 'APROVADO',
+      observacao_gestor: null,
+      motivo_recusa: null,
+    })
+  }
+
+  if (status === 'disponivel' && (vehicleIndex === 0 || vehicleIndex === 7)) {
+    const kmInicial = Math.max(0, km - 320)
+    records.push({
+      empresa_id: empresaId,
+      veiculo_id: veiculoId,
+      motorista_id: motoristaId,
+      data_viagem: daysAgo(8),
+      destino,
+      km_ida_volta: 320,
+      km_inicial: kmInicial,
+      km_final: km,
+      status: 'CONCLUIDA',
+      observacao_gestor: null,
+      motivo_recusa: null,
+    })
+  }
+
+  if (status === 'parado' || vehicleIndex === 4) {
+    records.push({
+      empresa_id: empresaId,
+      veiculo_id: veiculoId,
+      motorista_id: motoristaId,
+      data_viagem: daysAgo(3),
+      destino,
+      km_ida_volta: 90,
+      km_inicial: km,
+      km_final: null,
+      status: 'REJEITADO',
+      observacao_gestor: 'Veículo indisponível no período solicitado.',
+      motivo_recusa: 'Veículo parado para inspeção de segurança; não autorizado para viagem.',
+    })
+  }
+
+  return records
 }
 
 export function getMockPlacas(): string[] {
@@ -141,5 +217,24 @@ export function getMockPlacas(): string[] {
 }
 
 export function estimateMockCount(): number {
-  return MOCK_VEICULOS.length * getTemplatesForVehicle(0).length
+  return MOCK_VEICULOS.reduce(
+    (total, veiculo, index) =>
+      total + generateMockManutencoes('preview', veiculo.km_atual, index, 'preview', veiculo.status).length,
+    0,
+  )
+}
+
+export function estimateMockReservaCount(): number {
+  return MOCK_VEICULOS.reduce(
+    (total, veiculo, index) =>
+      total + generateMockReservas({
+        veiculoId: 'preview',
+        kmAtual: veiculo.km_atual,
+        vehicleIndex: index,
+        empresaId: 'preview',
+        motoristaId: 'preview',
+        status: veiculo.status,
+      }).length,
+    0,
+  )
 }

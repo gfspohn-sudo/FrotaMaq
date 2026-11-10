@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Calendar, MapPin, Gauge } from 'lucide-react'
+import { Calendar, CalendarClock, MapPin, Gauge, History } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { Input, Select, Textarea } from '@/components/ui/Input'
+import { TripRouteMap } from '@/components/TripRouteMap'
+import { EsgTripEstimate } from '@/components/EsgTripEstimate'
 import { Modal } from '@/components/ui/Modal'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -13,7 +17,12 @@ import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { getReservas, solicitarReserva, aprovarReserva, rejeitarReserva, finalizarViagem } from '@/services/reservas'
 import { getVeiculos } from '@/services/vehicles'
 import { STATUS_RESERVA_LABELS } from '@/types/database'
-import type { Reserva, Veiculo } from '@/types/database'
+import type { AuditLog, Reserva, Veiculo } from '@/types/database'
+import { Toast } from '@/components/ui/Toast'
+import { describeReservaSubmitError } from '@/lib/formatError'
+import { parseKmInput } from '@/utils/esgCalculator'
+import { AuditTimeline } from '@/components/AuditTimeline'
+import { getAuditLogs } from '@/services/auditLog'
 
 export function ReservasPage() {
   const { profile } = useAuth()
@@ -27,8 +36,11 @@ export function ReservasPage() {
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [error, setError] = useState('')
+  const [toast, setToast] = useState<{ message: string; variant: 'error' | 'success' } | null>(null)
   const [kmFinalById, setKmFinalById] = useState<Record<string, string>>({})
   const [rejecting, setRejecting] = useState<Reserva | null>(null)
+  const [selectedReserva, setSelectedReserva] = useState<Reserva | null>(null)
+  const [auditEvents, setAuditEvents] = useState<AuditLog[]>([])
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [rejectingSaving, setRejectingSaving] = useState(false)
   const [form, setForm] = useState({
@@ -46,11 +58,13 @@ export function ReservasPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [reservasRes, veiculosRes] = await Promise.all([
+    const [reservasRes, veiculosRes, auditRes] = await Promise.all([
       getReservas(profile, { empresaId: filterEmpresaId }),
       canRequestReserva ? getVeiculos({ empresaId: filterEmpresaId }, profile) : Promise.resolve({ data: null }),
+      getAuditLogs({ empresaId: filterEmpresaId, limit: 80 }),
     ])
     if (reservasRes.data) setReservas(reservasRes.data)
+    setAuditEvents(auditRes.data)
     if (veiculosRes.data) {
       setVeiculos(veiculosRes.data)
       setForm(prev => {
@@ -71,24 +85,60 @@ export function ReservasPage() {
     e.preventDefault()
     setError('')
     setFeedback('')
+
+    const missing: string[] = []
+    if (!form.veiculo_id) missing.push('Veículo')
+    if (!form.data_viagem) missing.push('Data da viagem')
+    if (!form.destino.trim()) missing.push('Destino')
+    const kmIdaVolta = parseKmInput(form.km_ida_volta)
+    if (kmIdaVolta <= 0) missing.push('Quilometragem ida e volta')
+
+    if (missing.length > 0) {
+      const message = `Preencha os campos obrigatórios: ${missing.join(', ')}.`
+      setError(message)
+      setToast({ message, variant: 'error' })
+      return
+    }
+
+    const dataViagem = new Date(form.data_viagem)
+    if (Number.isNaN(dataViagem.getTime())) {
+      const message = 'Data da viagem inválida.'
+      setError(message)
+      setToast({ message, variant: 'error' })
+      return
+    }
+
+    const empresaId = filterEmpresaId ?? profile?.empresa_id
+    if (!profile?.id || !empresaId) {
+      const message = 'Não foi possível identificar a empresa da viagem. Selecione uma empresa ou entre novamente.'
+      setError(message)
+      setToast({ message, variant: 'error' })
+      return
+    }
+
     setSaving(true)
 
     const { data, error: submitError } = await solicitarReserva(profile, {
       veiculo_id: form.veiculo_id,
-      data_viagem: new Date(form.data_viagem).toISOString(),
+      empresa_id: empresaId,
+      data_viagem: dataViagem.toISOString(),
       destino: form.destino.trim(),
-      km_ida_volta: Number(form.km_ida_volta),
+      km_ida_volta: kmIdaVolta,
     })
 
     setSaving(false)
 
     if (submitError) {
-      setError(submitError.message)
+      const message = describeReservaSubmitError(submitError)
+      setError(message)
+      setToast({ message, variant: 'error' })
       return
     }
 
     if (data) {
-      setFeedback('Reserva solicitada com sucesso. Aguardando aprovação do gestor.')
+      const message = 'Reserva solicitada com sucesso. Aguardando aprovação do gestor.'
+      setFeedback(message)
+      setToast({ message, variant: 'success' })
       setForm({ veiculo_id: '', data_viagem: '', destino: '', km_ida_volta: '' })
       load()
     }
@@ -141,11 +191,11 @@ export function ReservasPage() {
     <div>
       <Header title="Reservas" />
 
-      <div className="space-y-4 px-4 py-4">
+      <div className="page-section">
         {canRequestReserva && (
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-gray-900">Solicitar reserva</h2>
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <h2 className="mb-4 text-base font-semibold tracking-tight text-fg">Solicitar reserva</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <Select
                 label="Veículo"
                 value={form.veiculo_id}
@@ -160,24 +210,19 @@ export function ReservasPage() {
                 onChange={e => setForm(prev => ({ ...prev, data_viagem: e.target.value }))}
                 required
               />
-              <Input
-                label="Destino"
-                value={form.destino}
-                onChange={e => setForm(prev => ({ ...prev, destino: e.target.value }))}
-                placeholder="Cidade, cliente ou rota"
-                required
+              <TripRouteMap
+                destino={form.destino}
+                kmIdaVolta={form.km_ida_volta}
+                onDestinoChange={value => setForm(prev => ({ ...prev, destino: value }))}
+                onKmChange={value => setForm(prev => ({ ...prev, km_ida_volta: value }))}
               />
-              <Input
-                label="Quilometragem total (ida e volta)"
-                type="number"
-                min={1}
-                value={form.km_ida_volta}
-                onChange={e => setForm(prev => ({ ...prev, km_ida_volta: e.target.value }))}
-                required
+              <EsgTripEstimate
+                kmIdaVolta={form.km_ida_volta}
+                veiculo={veiculos.find(item => item.id === form.veiculo_id) ?? null}
               />
               {error && <p className="text-sm text-danger">{error}</p>}
               {feedback && <p className="text-sm text-success">{feedback}</p>}
-              <Button type="submit" className="w-full" disabled={saving}>
+              <Button type="submit" className="w-full" loading={saving}>
                 {saving ? 'Enviando...' : 'Solicitar reserva'}
               </Button>
             </form>
@@ -189,58 +234,66 @@ export function ReservasPage() {
         )}
 
         {canApproveReserva && (
-          <p className="text-sm text-gray-600">Painel de aprovação — reservas pendentes da empresa</p>
+          <p className="text-sm text-fg-muted">Painel de aprovação — reservas pendentes da empresa</p>
         )}
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
-          </div>
+          <ListSkeleton rows={4} />
         ) : reservas.length === 0 ? (
-          <Card>
-            <p className="py-8 text-center text-sm text-gray-500">Nenhuma reserva encontrada.</p>
-          </Card>
+          <EmptyState
+            icon={CalendarClock}
+            title="Sem viagens este mês"
+            description="Nenhuma reserva encontrada. Solicite a primeira viagem para começar a acompanhar a operação."
+          />
         ) : (
-          <div className="space-y-2">
+          <div className="grid gap-4">
             {reservas.map(r => (
-              <Card key={r.id}>
+              <Card key={r.id} className="transition-all duration-200 hover:shadow-md">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="font-medium text-gray-900">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 space-y-1 text-left"
+                    onClick={() => setSelectedReserva(r)}
+                  >
+                    <p className="font-medium text-fg">
                       {r.veiculos ? `${r.veiculos.modelo} - ${r.veiculos.placa}` : 'Veículo'}
                     </p>
-                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                    <p className="text-sm text-fg-muted flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5" /> {r.destino}
                     </p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <p className="text-xs text-fg-muted flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" />
                       {new Date(r.data_viagem).toLocaleString('pt-BR')}
                     </p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <p className="text-xs text-fg-muted flex items-center gap-1">
                       <Gauge className="h-3.5 w-3.5" /> {r.km_ida_volta.toLocaleString('pt-BR')} km (ida/volta)
                     </p>
                     {r.km_inicial != null && (
-                      <p className="text-xs text-gray-500">Km inicial: {r.km_inicial.toLocaleString('pt-BR')}</p>
+                      <p className="text-xs text-fg-muted">Km inicial: {r.km_inicial.toLocaleString('pt-BR')}</p>
                     )}
                     {r.km_final != null && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-fg-muted">
                         Km final: {r.km_final.toLocaleString('pt-BR')}
                         {r.km_percorrido != null ? ` · ${r.km_percorrido.toLocaleString('pt-BR')} km percorridos` : ''}
                       </p>
                     )}
                     {r.usuarios?.nome && (
-                      <p className="text-xs text-gray-400">Motorista: {r.usuarios.nome}</p>
+                      <p className="text-xs text-fg-subtle">Motorista: {r.usuarios.nome}</p>
                     )}
                     {r.status === 'REJEITADO' && (r.motivo_recusa || r.observacao_gestor) && (
                       <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
                         Motivo da recusa: {r.motivo_recusa || r.observacao_gestor}
                       </p>
                     )}
-                  </div>
+                    <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-action">
+                      <History className="h-3.5 w-3.5" />
+                      Ver detalhes e auditoria
+                    </p>
+                  </button>
                   <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                     r.status === 'APROVADO' ? 'bg-success/10 text-success'
                       : r.status === 'REJEITADO' ? 'bg-danger/10 text-danger'
-                        : r.status === 'CONCLUIDA' ? 'bg-gray-100 text-gray-600'
+                        : r.status === 'CONCLUIDA' ? 'bg-surface-muted text-fg-muted'
                         : 'bg-warning/10 text-warning'
                   }`}>
                     {STATUS_RESERVA_LABELS[r.status]}
@@ -280,6 +333,43 @@ export function ReservasPage() {
         )}
       </div>
 
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <Modal
+        isOpen={!!selectedReserva}
+        onClose={() => setSelectedReserva(null)}
+        title="Detalhes da reserva"
+      >
+        {selectedReserva && (
+          <div className="space-y-4">
+            <div>
+              <p className="font-medium text-fg">
+                {selectedReserva.veiculos
+                  ? `${selectedReserva.veiculos.modelo} · ${selectedReserva.veiculos.placa}`
+                  : 'Veículo'}
+              </p>
+              <p className="mt-1 text-sm text-fg-muted">{selectedReserva.destino}</p>
+              <p className="text-xs text-fg-muted">
+                {new Date(selectedReserva.data_viagem).toLocaleString('pt-BR')}
+                {' · '}
+                {STATUS_RESERVA_LABELS[selectedReserva.status]}
+              </p>
+            </div>
+            <AuditTimeline
+              events={auditEvents.filter(event => event.reserva_id === selectedReserva.id)}
+              title="Histórico recente"
+              emptyDescription="Ainda não há eventos de auditoria nesta viagem."
+            />
+          </div>
+        )}
+      </Modal>
+
       <Modal
         isOpen={!!rejecting}
         onClose={() => {
@@ -291,16 +381,19 @@ export function ReservasPage() {
         title="Recusar reserva"
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-fg-muted">
             Informe o motivo da recusa. O motorista poderá consultar esta justificativa.
           </p>
-          <Textarea
-            label="Informe o motivo da recusa:"
-            value={motivoRecusa}
-            onChange={e => setMotivoRecusa(e.target.value)}
-            placeholder="Ex.: veículo indisponível na data, conflito de agenda..."
-            required
-          />
+          <div className="rounded-xl border border-danger/30 bg-danger/5 p-3">
+            <Textarea
+              label="Informe o motivo da recusa:"
+              value={motivoRecusa}
+              onChange={e => setMotivoRecusa(e.target.value)}
+              placeholder="Ex.: veículo indisponível na data, conflito de agenda..."
+              error={error && !motivoRecusa.trim() ? error : undefined}
+              required
+            />
+          </div>
           {error && <p className="text-sm text-danger">{error}</p>}
           <div className="flex gap-3">
             <Button
@@ -319,7 +412,8 @@ export function ReservasPage() {
               type="button"
               variant="danger"
               className="flex-1"
-              disabled={rejectingSaving || !motivoRecusa.trim()}
+              loading={rejectingSaving}
+              disabled={!motivoRecusa.trim()}
               onClick={handleRejectConfirm}
             >
               {rejectingSaving ? 'Recusando...' : 'Confirmar recusa'}

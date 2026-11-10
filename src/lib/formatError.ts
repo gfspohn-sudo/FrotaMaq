@@ -28,3 +28,30 @@ export function formatErrorMessage(error: unknown): string {
 export function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(formatErrorMessage(error))
 }
+
+const FIELD_HINTS: Array<{ match: RegExp; message: string }> = [
+  { match: /veiculo_id|veículo|veiculo/i, message: 'Veículo' },
+  { match: /data_viagem|data da viagem/i, message: 'Data da viagem' },
+  { match: /destino/i, message: 'Destino' },
+  { match: /km_ida_volta|quilometragem/i, message: 'Quilometragem ida e volta' },
+  { match: /empresa_id|empresa/i, message: 'Empresa' },
+  { match: /motorista_id/i, message: 'Motorista' },
+]
+
+export function describeReservaSubmitError(error: unknown): string {
+  const raw = formatErrorMessage(error)
+  const lower = raw.toLowerCase()
+
+  if (lower.includes('row-level security') || lower.includes('42501') || lower.includes('permission denied')) {
+    return 'Permissão insuficiente para criar a viagem (RLS). Verifique se o veículo pertence à sua empresa e se você está autenticado.'
+  }
+
+  if (lower.includes('null value') || lower.includes('not-null') || lower.includes('violates check')) {
+    const field = FIELD_HINTS.find(item => item.match.test(raw))?.message
+    return field
+      ? `O campo "${field}" foi rejeitado pelo banco (valor nulo ou inválido).`
+      : `O banco rejeitou um campo obrigatório: ${raw}`
+  }
+
+  return raw
+}

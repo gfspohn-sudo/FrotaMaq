@@ -1,6 +1,17 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
-import { supabase, getSupabaseConfigError, runInitialConnectionTest } from '@/lib/supabase'
+import {
+  supabase,
+  getSupabaseConfigError,
+  getSupabaseHealthCheck,
+  ensureSupabaseSession,
+  logSupabaseFailure,
+  classifySupabaseError,
+  formatSupabaseError,
+  getOAuthRedirectUrl,
+} from '@/lib/supabase'
+import { isTransientSupabaseError } from '@/lib/supabaseResilience'
+import { runSupabaseQuery } from '@/lib/supabaseQuery'
 import { formatAuthError } from '@/lib/seedTestUsers'
 import { TENANT_STORAGE_KEY } from '@/lib/tenantFilter'
 import { notifyDataRefresh } from '@/lib/dataRefresh'
@@ -27,6 +38,37 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const PROFILE_CACHE_KEY = 'frotamaq:last-profile'
+
+function readCachedProfile(): Usuario | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_CACHE_KEY)
+    return raw ? JSON.parse(raw) as Usuario : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedProfile(profile: Usuario | null) {
+  try {
+    if (!profile) localStorage.removeItem(PROFILE_CACHE_KEY)
+    else localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function profileFromUser(user: User): Usuario {
+  const metadata = user.user_metadata ?? {}
+  return {
+    id: user.id,
+    email: user.email ?? '',
+    nome: String(metadata.nome ?? user.email ?? 'Usuário'),
+    perfil: (metadata.perfil as Usuario['perfil']) || 'motorista',
+    empresa_id: typeof metadata.empresa_id === 'string' ? metadata.empresa_id : null,
+    created_at: user.created_at ?? new Date().toISOString(),
+  }
+}
 
 async function upsertUsuarioProfile(
   userId: string,
@@ -61,24 +103,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [connectionError, setConnectionError] = useState<string | null>(null)
 
   async function fetchProfile(userId: string) {
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('id', userId)
-      .single()
+    await ensureSupabaseSession('fetchProfile')
+
+    const { data, error } = await runSupabaseQuery('auth.fetchProfile', () =>
+      supabase.from('usuarios').select('*').eq('id', userId).single(),
+    )
 
     if (error) {
-      console.error('[Supabase] fetchProfile(usuarios):', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        error,
-      })
+      const fallback = readCachedProfile()
+      if (fallback?.id === userId) setProfile(fallback)
       return
     }
-
-    if (data) setProfile(data)
+    if (data) {
+      setProfile(data)
+      writeCachedProfile(data)
+    }
   }
 
   useEffect(() => {
@@ -90,31 +129,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const test = await runInitialConnectionTest()
-      if (test.networkError) {
-        setConnectionError(
-          'Erro de Conexão de Rede: não foi possível alcançar o Supabase. Teste com 4G ou desative AdBlock/VPN.',
-        )
-      } else if (!test.authOk) {
-        setConnectionError(test.messages[0] ?? 'Falha ao conectar com Auth do Supabase.')
-      } else if (!test.dbOk) {
-        console.warn('[Supabase] Auth OK, mas tabela usuarios falhou. Execute fix_database.sql.')
-      }
+      getSupabaseHealthCheck().then(test => {
+        if (test.configError) {
+          setConnectionError(test.configError)
+          return
+        }
+        if (test.unavailable || test.networkError) {
+          logSupabaseFailure('AuthProvider.healthcheck', 'unavailable', test.messages.join('; '))
+          return
+        }
+        if (!test.authOk) {
+          setConnectionError(test.messages[0] ?? 'Falha ao conectar com Auth do Supabase.')
+        } else if (!test.dbOk) {
+          console.warn('[Supabase] Auth OK, mas tabela usuarios falhou. Execute o SQL de schema no Supabase.')
+        }
+      }).catch(err => {
+        logSupabaseFailure('AuthProvider.healthcheck', classifySupabaseError(err instanceof Error ? err : {}), err)
+      })
 
       try {
-        const { data: { session: s }, error } = await supabase.auth.getSession()
+        const { session: s, error: sessionError } = await ensureSupabaseSession('AuthProvider.init')
 
-        if (error) {
-          console.error('Erro no Supabase:', error)
-          setConnectionError(formatAuthError(error.message, { status: error.status, code: error.code }))
+        if (sessionError && !isTransientSupabaseError({ message: sessionError })) {
+          setConnectionError(formatSupabaseError(sessionError))
         } else {
           setSession(s)
           setUser(s?.user ?? null)
-          if (s?.user) await fetchProfile(s.user.id)
+          if (s?.user) {
+            const cached = readCachedProfile()
+            if (cached?.id === s.user.id) setProfile(cached)
+            else setProfile(profileFromUser(s.user))
+            void fetchProfile(s.user.id)
+          }
         }
       } catch (err) {
-        console.error('Erro no Supabase:', err)
-        setConnectionError(err instanceof Error ? err.message : 'Erro desconhecido')
+        logSupabaseFailure('AuthProvider.init', classifySupabaseError(err instanceof Error ? err : {}), err)
+        if (!isTransientSupabaseError(err)) {
+          setConnectionError(err instanceof Error ? err.message : 'Erro desconhecido')
+        }
       } finally {
         setLoading(false)
       }
@@ -204,7 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: getOAuthRedirectUrl() },
       })
 
       if (error) {
@@ -224,6 +276,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
     setUser(null)
     setSession(null)
+    writeCachedProfile(null)
     localStorage.removeItem(TENANT_STORAGE_KEY)
     notifyDataRefresh()
   }

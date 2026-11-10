@@ -1,11 +1,10 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
-import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { formatCurrency } from '@/lib/maintenanceStatus'
 import type { MaintenanceDashboard } from '@/services/reports'
 
-const STATUS_COLORS = { concluidas: '#22c55e', proximas: '#f97316', vencidas: '#ef4444' }
-const TYPE_COLORS = ['#2563eb', '#22c55e', '#f97316']
+const STATUS_COLORS = { concluidas: '#059669', proximas: '#d97706', vencidas: '#e11d48' }
+const TYPE_COLORS = ['#2563eb', '#059669', '#d97706']
 
 interface DashboardChartsProps {
   dashboard: MaintenanceDashboard
@@ -14,6 +13,7 @@ interface DashboardChartsProps {
   showCostCard?: boolean
   showStatusCharts?: boolean
   costHref?: string
+  onCostClick?: () => void
 }
 
 export function DashboardCharts({
@@ -22,7 +22,7 @@ export function DashboardCharts({
   periodLabel = 'Custo total do mês',
   showCostCard = false,
   showStatusCharts = true,
-  costHref,
+  onCostClick,
 }: DashboardChartsProps) {
   const statusChartData = [
     { name: 'Concluídas', value: dashboard.statusCounts.concluidas, color: STATUS_COLORS.concluidas },
@@ -39,20 +39,20 @@ export function DashboardCharts({
   return (
     <div className="space-y-4">
       {showCostCard && totalGeral != null && (
-        <Link to={costHref ?? '/relatorios?tab=custos'}>
-          <Card className="text-center hover:bg-gray-50">
-            <p className="text-sm text-gray-500">{periodLabel}</p>
-            <p className="mt-1 text-3xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
+        <button type="button" className="w-full text-left" onClick={onCostClick}>
+          <Card interactive className="text-center">
+            <p className="text-sm text-fg-muted">{periodLabel}</p>
+            <p className="mt-1 text-3xl font-bold text-fg">{formatCurrency(totalGeral)}</p>
             <p className="mt-1 text-xs text-action">Toque para ver a discriminação de custos</p>
           </Card>
-        </Link>
+        </button>
       )}
 
       {showStatusCharts && (statusChartData.length > 0 || typeChartData.length > 0) && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {statusChartData.length > 0 && (
             <Card>
-              <p className="mb-2 text-sm font-medium text-gray-700">Status das manutenções</p>
+              <p className="mb-2 text-sm font-medium text-fg">Status das manutenções</p>
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie
@@ -77,7 +77,7 @@ export function DashboardCharts({
 
           {typeChartData.length > 0 && (
             <Card>
-              <p className="mb-2 text-sm font-medium text-gray-700">Distribuição por tipo de manutenção</p>
+              <p className="mb-2 text-sm font-medium text-fg">Distribuição por tipo de manutenção</p>
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie

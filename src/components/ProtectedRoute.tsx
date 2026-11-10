@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { PermissionService } from '@/application/services/PermissionService'
+import { PageSkeleton } from '@/components/ui/Skeleton'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -32,8 +33,8 @@ export function ProtectedRoute({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
+      <div className="min-h-screen bg-canvas">
+        <PageSkeleton />
       </div>
     )
   }

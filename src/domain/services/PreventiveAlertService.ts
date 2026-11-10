@@ -13,6 +13,7 @@ export interface PreventiveAlert {
   tipo: 'dias' | 'km'
   diasRestantes?: number
   kmRestantes?: number
+  atrasada: boolean
 }
 
 /** Domain Service — alertas preventivos (5 dias ou X km). */
@@ -36,26 +37,38 @@ export class PreventiveAlertService {
         const diffMs = dataManut.getTime() - hoje.getTime()
         const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
 
-        if (diasRestantes >= 0 && diasRestantes <= diasLimite) {
+        if (diasRestantes <= diasLimite) {
+          const atrasada = diasRestantes < 0
           alertas.push({
             veiculoId: v.veiculoId,
             placa: v.placa,
-            mensagem: `Manutenção preventiva em ${diasRestantes} dia(s) — ${v.placa}`,
+            mensagem: atrasada
+              ? `Manutenção vencida há ${Math.abs(diasRestantes)} dia(s) — ${v.placa}`
+              : diasRestantes === 0
+                ? `Manutenção preventiva vence hoje — ${v.placa}`
+                : `Manutenção preventiva em ${diasRestantes} dia(s) — ${v.placa}`,
             tipo: 'dias',
             diasRestantes,
+            atrasada,
           })
         }
       }
 
       if (v.proximaManutencaoKm != null && Number.isFinite(v.proximaManutencaoKm)) {
         const kmRestantes = v.proximaManutencaoKm - v.kmAtual
-        if (kmRestantes >= 0 && kmRestantes <= kmLimite) {
+        if (kmRestantes <= kmLimite) {
+          const atrasada = kmRestantes < 0
           alertas.push({
             veiculoId: v.veiculoId,
             placa: v.placa,
-            mensagem: `Faltam ${kmRestantes.toLocaleString('pt-BR')} km para manutenção — ${v.placa}`,
+            mensagem: atrasada
+              ? `Quilometragem da preventiva ultrapassada em ${Math.abs(kmRestantes).toLocaleString('pt-BR')} km — ${v.placa}`
+              : kmRestantes === 0
+                ? `Quilometragem da preventiva atingida — ${v.placa}`
+                : `Faltam ${kmRestantes.toLocaleString('pt-BR')} km para manutenção — ${v.placa}`,
             tipo: 'km',
             kmRestantes,
+            atrasada,
           })
         }
       }

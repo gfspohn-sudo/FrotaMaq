@@ -1,6 +1,8 @@
 import { Veiculo } from '@/domain/entities/Veiculo'
 import { Manutencao } from '@/domain/entities/Manutencao'
+import { Reserva } from '@/domain/entities/Reserva'
 import type { ManutencaoProps } from '@/domain/entities/Manutencao'
+import type { ReservaProps } from '@/domain/entities/Reserva'
 
 export function createVeiculo(overrides: Partial<Parameters<typeof buildVeiculoProps>[0]> = {}) {
   return new Veiculo(buildVeiculoProps(overrides))
@@ -56,6 +58,31 @@ export function createManutencao(overrides: Partial<ManutencaoProps> = {}) {
     status: 'concluida',
     createdAt: '2026-09-05T10:00:00.000Z',
     veiculoResumo: { placa: 'ABC-1D23', modelo: 'FH 540' },
+    ...overrides,
+  })
+}
+
+export function createReserva(overrides: Partial<ReservaProps> = {}) {
+  return new Reserva({
+    id: 'res-1',
+    empresaId: 'emp-1',
+    veiculoId: 'veh-1',
+    motoristaId: 'mot-1',
+    dataViagem: '2026-11-09T08:00:00.000Z',
+    destino: 'Campinas',
+    kmIdaVolta: 120,
+    kmInicial: 50_000,
+    kmFinal: null,
+    kmPercorrido: null,
+    dataFim: null,
+    status: 'APROVADO',
+    observacaoGestor: null,
+    motivoRecusa: null,
+    createdAt: '2026-11-08T10:00:00.000Z',
+    updatedAt: '2026-11-08T10:00:00.000Z',
+    veiculoPlaca: 'ABC-1D23',
+    veiculoModelo: 'FH 540',
+    motoristaNome: 'Carlos',
     ...overrides,
   })
 }

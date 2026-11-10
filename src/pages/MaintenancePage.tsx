@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { MaintenanceFormModal } from '@/components/MaintenanceFormModal'
 import { MaintenanceCard } from '@/components/MaintenanceCard'
 import { MaintenanceDetailModal } from '@/components/MaintenanceDetailModal'
@@ -11,7 +13,7 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { useTenant } from '@/contexts/TenantContext'
 import type { Manutencao } from '@/types/database'
-import { History } from 'lucide-react'
+import { History, Wrench } from 'lucide-react'
 
 export function MaintenancePage() {
   const { profile } = useAuth()
@@ -36,33 +38,35 @@ export function MaintenancePage() {
     <div>
       <Header title="Manutenções" />
 
-      <div className="space-y-3 px-4 py-4">
+      <div className="page-section">
         <Link to="/historico">
-          <Card className="flex items-center gap-3 py-3 hover:shadow-md transition-shadow">
+          <Card interactive className="flex items-center gap-3 py-3">
             <History className="h-5 w-5 text-action" />
             <div>
-              <p className="text-sm font-medium text-gray-900">Histórico geral</p>
-              <p className="text-xs text-gray-500">Ver todas as manutenções concluídas com filtros</p>
+              <p className="text-sm font-medium text-fg">Histórico geral</p>
+              <p className="text-xs text-fg-muted">Ver todas as manutenções concluídas com filtros</p>
             </div>
           </Card>
         </Link>
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
-          </div>
+          <ListSkeleton rows={4} />
         ) : manutencoes.length === 0 ? (
-          <Card>
-            <p className="py-8 text-center text-sm text-gray-500">Nenhuma manutenção registrada.</p>
-          </Card>
+          <EmptyState
+            icon={Wrench}
+            title="Nenhuma manutenção registrada"
+            description="Quando os serviços forem lançados, eles aparecerão aqui."
+          />
         ) : (
-          manutencoes.map(m => (
+          <div className="grid gap-3">
+          {manutencoes.map(m => (
             <MaintenanceCard
               key={m.id}
               manutencao={m}
               onClick={() => setSelected(m)}
             />
-          ))
+          ))}
+          </div>
         )}
       </div>
 
@@ -96,7 +100,7 @@ export function NewMaintenancePage() {
   if (!canCreateMaintenance) {
     return (
       <div className="px-4 py-12 text-center">
-        <p className="text-gray-500">Você não tem permissão para criar manutenções.</p>
+        <p className="text-fg-muted">Você não tem permissão para criar manutenções.</p>
       </div>
     )
   }

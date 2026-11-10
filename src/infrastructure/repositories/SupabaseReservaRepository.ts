@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { runSupabaseQuery } from '@/lib/supabaseQuery'
 import type { IReservaRepository, ReservaListFilter } from '@/domain/repositories/IReservaRepository'
 import type { Reserva as ReservaDTO, StatusReserva } from '@/types/database'
 import { ReservaMapper } from '@/infrastructure/mappers/ReservaMapper'
@@ -8,29 +9,33 @@ const RESERVA_SELECT = '*, veiculos(placa, nome_exibicao), usuarios(nome)'
 
 export class SupabaseReservaRepository implements IReservaRepository {
   async findAll(filter?: ReservaListFilter) {
-    let query = supabase
-      .from('reservas')
-      .select(RESERVA_SELECT)
-      .order('created_at', { ascending: false })
+    return runSupabaseQuery('reservas.findAll', async () => {
+      let query = supabase
+        .from('reservas')
+        .select(RESERVA_SELECT)
+        .order('created_at', { ascending: false })
 
-    if (filter?.empresaId) query = query.eq('empresa_id', filter.empresaId)
-    if (filter?.status) query = query.eq('status', filter.status)
-    if (filter?.motoristaId) query = query.eq('motorista_id', filter.motoristaId)
-    if (filter?.veiculoId) query = query.eq('veiculo_id', filter.veiculoId)
+      if (filter?.empresaId) query = query.eq('empresa_id', filter.empresaId)
+      if (filter?.status) query = query.eq('status', filter.status)
+      if (filter?.motoristaId) query = query.eq('motorista_id', filter.motoristaId)
+      if (filter?.veiculoId) query = query.eq('veiculo_id', filter.veiculoId)
 
-    const { data, error } = await query
-    return { data: ReservaMapper.toDomainList(data as ReservaDTO[] | null), error }
+      const { data, error } = await query
+      return { data: ReservaMapper.toDomainList(data as ReservaDTO[] | null), error }
+    })
   }
 
   async findById(id: string, empresaId?: string) {
-    let query = supabase.from('reservas').select(RESERVA_SELECT).eq('id', id)
-    if (empresaId) query = query.eq('empresa_id', empresaId)
-    const { data, error } = await query.single()
+    return runSupabaseQuery('reservas.findById', async () => {
+      let query = supabase.from('reservas').select(RESERVA_SELECT).eq('id', id)
+      if (empresaId) query = query.eq('empresa_id', empresaId)
+      const { data, error } = await query.single()
 
-    return {
-      data: data ? ReservaMapper.toDomain(data as ReservaDTO) : null,
-      error,
-    }
+      return {
+        data: data ? ReservaMapper.toDomain(data as ReservaDTO) : null,
+        error,
+      }
+    })
   }
 
   async create(input: {
@@ -42,16 +47,18 @@ export class SupabaseReservaRepository implements IReservaRepository {
     km_ida_volta: number
     km_inicial?: number | null
   }) {
-    const { data, error } = await supabase
-      .from('reservas')
-      .insert({ ...input, status: 'PENDENTE' })
-      .select(RESERVA_SELECT)
-      .single()
+    return runSupabaseQuery('reservas.create', async () => {
+      const { data, error } = await supabase
+        .from('reservas')
+        .insert({ ...input, status: 'PENDENTE' })
+        .select(RESERVA_SELECT)
+        .single()
 
-    return {
-      data: data ? ReservaMapper.toDomain(data as ReservaDTO) : null,
-      error,
-    }
+      return {
+        data: data ? ReservaMapper.toDomain(data as ReservaDTO) : null,
+        error,
+      }
+    })
   }
 
   async updateStatus(
@@ -61,86 +68,96 @@ export class SupabaseReservaRepository implements IReservaRepository {
     empresaId?: string,
     motivoRecusa?: string | null,
   ) {
-    const payload: Record<string, unknown> = {
-      status,
-      observacao_gestor: observacaoGestor ?? null,
-      updated_at: new Date().toISOString(),
-    }
-    if (status === 'REJEITADO') {
-      payload.motivo_recusa = motivoRecusa ?? observacaoGestor ?? null
-    }
-    if (status === 'APROVADO') {
-      payload.motivo_recusa = null
-    }
+    return runSupabaseQuery('reservas.updateStatus', async () => {
+      const payload: Record<string, unknown> = {
+        status,
+        observacao_gestor: observacaoGestor ?? null,
+        updated_at: new Date().toISOString(),
+      }
+      if (status === 'REJEITADO') {
+        payload.motivo_recusa = motivoRecusa ?? observacaoGestor ?? null
+      }
+      if (status === 'APROVADO') {
+        payload.motivo_recusa = null
+      }
 
-    let query = supabase
-      .from('reservas')
-      .update(payload)
-      .eq('id', id)
-    if (empresaId) query = query.eq('empresa_id', empresaId)
-    const { data, error } = await query.select(RESERVA_SELECT).single()
+      let query = supabase
+        .from('reservas')
+        .update(payload)
+        .eq('id', id)
+      if (empresaId) query = query.eq('empresa_id', empresaId)
+      const { data, error } = await query.select(RESERVA_SELECT).single()
 
-    return {
-      data: data ? ReservaMapper.toDomain(data as ReservaDTO) : null,
-      error,
-    }
+      return {
+        data: data ? ReservaMapper.toDomain(data as ReservaDTO) : null,
+        error,
+      }
+    })
   }
 
   async finalizarViagem(id: string, kmFinal: number, kmInicial?: number | null, empresaId?: string) {
-    const payload: Record<string, unknown> = {
-      km_final: kmFinal,
-      data_fim: new Date().toISOString(),
-      status: 'CONCLUIDA',
-      updated_at: new Date().toISOString(),
-    }
-    if (kmInicial != null) payload.km_inicial = kmInicial
-    if (kmInicial != null) payload.km_percorrido = kmFinal - kmInicial
+    return runSupabaseQuery('reservas.finalizarViagem', async () => {
+      const payload: Record<string, unknown> = {
+        km_final: kmFinal,
+        data_fim: new Date().toISOString(),
+        status: 'CONCLUIDA',
+        updated_at: new Date().toISOString(),
+      }
+      if (kmInicial != null) payload.km_inicial = kmInicial
+      if (kmInicial != null) payload.km_percorrido = kmFinal - kmInicial
 
-    let query = supabase.from('reservas').update(payload).eq('id', id)
-    if (empresaId) query = query.eq('empresa_id', empresaId)
-    const { data, error } = await query.select(RESERVA_SELECT).single()
+      let query = supabase.from('reservas').update(payload).eq('id', id)
+      if (empresaId) query = query.eq('empresa_id', empresaId)
+      const { data, error } = await query.select(RESERVA_SELECT).single()
 
-    return {
-      data: data ? ReservaMapper.toDomain(data as ReservaDTO) : null,
-      error,
-    }
+      return {
+        data: data ? ReservaMapper.toDomain(data as ReservaDTO) : null,
+        error,
+      }
+    })
   }
 
   async findVeiculosComReservaAprovada(motoristaId: string) {
-    const { data, error } = await supabase
-      .from('reservas')
-      .select('veiculo_id')
-      .eq('motorista_id', motoristaId)
-      .eq('status', 'APROVADO')
+    return runSupabaseQuery('reservas.findVeiculosComReservaAprovada', async () => {
+      const { data, error } = await supabase
+        .from('reservas')
+        .select('veiculo_id')
+        .eq('motorista_id', motoristaId)
+        .eq('status', 'APROVADO')
 
-    if (error) return { data: null, error }
+      if (error) return { data: null, error }
 
-    const ids = [...new Set((data ?? []).map(r => r.veiculo_id as string))]
-    return { data: ids, error: null }
+      const ids = [...new Set((data ?? []).map(r => r.veiculo_id as string))]
+      return { data: ids, error: null }
+    })
   }
 
   async findVeiculosEscopoMotorista(motoristaId: string) {
-    const { data, error } = await supabase
-      .from('reservas')
-      .select('veiculo_id')
-      .eq('motorista_id', motoristaId)
-      .in('status', ['APROVADO', 'PENDENTE', 'CONCLUIDA'])
+    return runSupabaseQuery('reservas.findVeiculosEscopoMotorista', async () => {
+      const { data, error } = await supabase
+        .from('reservas')
+        .select('veiculo_id')
+        .eq('motorista_id', motoristaId)
+        .in('status', ['APROVADO', 'PENDENTE', 'CONCLUIDA'])
 
-    if (error) return { data: null, error }
+      if (error) return { data: null, error }
 
-    const ids = [...new Set((data ?? []).map(r => r.veiculo_id as string))]
-    return { data: ids, error: null }
+      const ids = [...new Set((data ?? []).map(r => r.veiculo_id as string))]
+      return { data: ids, error: null }
+    })
   }
 
   async countPendentes(filter?: TenantFilter) {
-    let query = supabase
-      .from('reservas')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'PENDENTE')
+    return runSupabaseQuery('reservas.countPendentes', async () => {
+      let query = supabase
+        .from('reservas')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'PENDENTE')
 
-    if (filter?.empresaId) query = query.eq('empresa_id', filter.empresaId)
+      if (filter?.empresaId) query = query.eq('empresa_id', filter.empresaId)
 
-    const { count, error } = await query
-    return { count: count ?? 0, error }
+      const { count, error } = await query
+      return { count: count ?? 0, error }
+    })
   }
 }

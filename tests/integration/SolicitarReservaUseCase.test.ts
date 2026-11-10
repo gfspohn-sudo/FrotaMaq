@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import { SolicitarReservaUseCase } from '@/application/use-cases/ReservaUseCases'
+import { configureAuditTrail } from '@/application/services/AuditTrailService'
+import { HybridAuditLogRepository } from '@/infrastructure/repositories/HybridAuditLogRepository'
 import { createVeiculo } from '../helpers/fixtures'
 
 const profile = {
@@ -12,6 +14,10 @@ const profile = {
 }
 
 describe('SolicitarReservaUseCase', () => {
+  afterEach(() => {
+    configureAuditTrail(new HybridAuditLogRepository())
+  })
+
   it('recusa reserva de veículo em manutenção', async () => {
     const veiculoEmManutencao = createVeiculo({
       id: 'veh-1',
@@ -53,13 +59,15 @@ describe('SolicitarReservaUseCase', () => {
 
     const reservaRepo = {
       create: vi.fn().mockResolvedValue({
-        data: { toDTO: () => ({ id: 'res-1' }) },
+        data: { toDTO: () => ({ id: 'res-1', veiculo_id: 'veh-2', destino: 'São Paulo' }) },
         error: null,
       }),
     }
     const veiculoRepo = {
       findById: vi.fn().mockResolvedValue({ data: veiculoOk, error: null }),
     }
+    const auditCreate = vi.fn().mockResolvedValue({ data: { id: 'evt-1' }, error: null })
+    configureAuditTrail({ create: auditCreate, findAll: vi.fn() } as never)
 
     const useCase = new SolicitarReservaUseCase(
       reservaRepo as never,
@@ -75,5 +83,10 @@ describe('SolicitarReservaUseCase', () => {
 
     expect(result.error).toBeNull()
     expect(reservaRepo.create).toHaveBeenCalledOnce()
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({
+      acao: 'viagem_criada',
+      veiculo_id: 'veh-2',
+      reserva_id: 'res-1',
+    }))
   })
 })

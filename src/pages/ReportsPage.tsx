@@ -3,10 +3,14 @@ import { useSearchParams } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip,
 } from 'recharts'
+import { CalendarClock, Inbox } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { MaintenanceCard } from '@/components/MaintenanceCard'
 import { MaintenanceDetailModal } from '@/components/MaintenanceDetailModal'
+import { CostDrillDownDrawer } from '@/components/CostDrillDownDrawer'
 import { Input, Select } from '@/components/ui/Input'
 import { getFinancialReport, getMaintenanceDashboard } from '@/services/reports'
 import {
@@ -22,17 +26,18 @@ import { getReservas, getDriverTripHistory } from '@/services/reservas'
 import { TIPO_MANUTENCAO_LABELS } from '@/types/database'
 import type { Manutencao, Reserva, Veiculo } from '@/types/database'
 import type { CostBreakdownItem, CostByType, CostByVehicle, MaintenanceDashboard } from '@/services/reports'
-import { formatCurrency, formatDate } from '@/lib/maintenanceStatus'
+import { formatCurrency } from '@/lib/maintenanceStatus'
 import { formatPlacaCurta } from '@/lib/vehicleDisplay'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { useTenant } from '@/contexts/TenantContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PeriodoFinanceiro } from '@/domain/value-objects/PeriodoFinanceiro'
 import { getManutencaoData } from '@/lib/dbCompat'
+import { ExecutiveExportCard } from '@/components/ExecutiveExportCard'
 
 type ViewMode = 'executadas' | 'proximas' | 'custos' | 'pedidos'
 
-const TYPE_COLORS = ['#2563eb', '#22c55e', '#f97316']
+const TYPE_COLORS = ['#2563eb', '#059669', '#d97706']
 
 function MaintenanceListSection({
   title,
@@ -47,11 +52,9 @@ function MaintenanceListSection({
 }) {
   return (
     <section>
-      <h2 className="mb-3 text-sm font-semibold text-gray-900">{title}</h2>
+      <h2 className="mb-3 text-sm font-semibold text-fg">{title}</h2>
       {items.length === 0 ? (
-        <Card>
-          <p className="py-4 text-center text-sm text-gray-500">{emptyMessage}</p>
-        </Card>
+        <EmptyState title={emptyMessage} />
       ) : (
         <div className="space-y-2">
           {items.map(m => (
@@ -79,38 +82,34 @@ function MotoristaTripHistory() {
   useDataRefresh(load)
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
-      </div>
-    )
+    return <ListSkeleton rows={3} />
   }
 
   if (trips.length === 0) {
     return (
-      <Card>
-        <p className="py-6 text-center text-sm text-gray-500">
-          Você ainda não utilizou veículos. Solicite uma reserva na aba Veículos.
-        </p>
-      </Card>
+      <EmptyState
+        icon={CalendarClock}
+        title="Sem viagens este mês"
+        description="Você ainda não utilizou veículos. Solicite uma reserva na aba Veículos."
+      />
     )
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-600">Histórico dos veículos que você utilizou</p>
+      <p className="text-sm text-fg-muted">Histórico dos veículos que você utilizou</p>
       {trips.map(t => (
         <Card key={t.id}>
-          <p className="font-medium text-gray-900">
+          <p className="font-medium text-fg">
             {t.veiculos ? `${t.veiculos.modelo ?? ''} · ${t.veiculos.placa}` : 'Veículo'}
           </p>
-          <p className="text-sm text-gray-600">{t.destino}</p>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-sm text-fg-muted">{t.destino}</p>
+          <p className="mt-1 text-xs text-fg-muted">
             {new Date(t.data_viagem).toLocaleString('pt-BR')}
             {t.data_fim ? ` — ${new Date(t.data_fim).toLocaleString('pt-BR')}` : ' — em andamento'}
           </p>
           {t.km_percorrido != null && (
-            <p className="text-xs text-gray-500">{t.km_percorrido.toLocaleString('pt-BR')} km percorridos</p>
+            <p className="text-xs text-fg-muted">{t.km_percorrido.toLocaleString('pt-BR')} km percorridos</p>
           )}
           {t.status === 'REJEITADO' && (t.motivo_recusa || t.observacao_gestor) && (
             <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -134,9 +133,11 @@ function PedidosRelatorioPanel({
 
   if (solicitacoes.length === 0) {
     return (
-      <Card>
-        <p className="py-6 text-center text-sm text-gray-500">Nenhum pedido de relatório pendente.</p>
-      </Card>
+      <EmptyState
+        icon={Inbox}
+        title="Nenhum pedido de relatório pendente"
+        description="Quando um motorista solicitar acesso, o pedido aparecerá aqui."
+      />
     )
   }
 
@@ -144,10 +145,10 @@ function PedidosRelatorioPanel({
     <div className="space-y-2">
       {solicitacoes.map(s => (
         <Card key={s.id}>
-          <p className="font-medium text-gray-900">
+          <p className="font-medium text-fg">
             {s.veiculos ? `${s.veiculos.modelo} - ${s.veiculos.placa}` : 'Veículo'}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-fg-muted">
             {s.usuarios?.nome ? `Solicitado por ${s.usuarios.nome}` : 'Solicitação de acesso a relatório'}
           </p>
           <div className="mt-2 flex gap-2">
@@ -175,7 +176,7 @@ function PedidosRelatorioPanel({
 
 export function ReportsPage() {
   const { profile } = useAuth()
-  const { filterEmpresaId } = useTenant()
+  const { filterEmpresaId, empresas, isViewingAll } = useTenant()
   const { isMotorista, canViewGlobalFinancialMetrics, canApproveReportAccess } = usePermissions()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
@@ -319,25 +320,31 @@ export function ReportsPage() {
     total: v.total,
   }))
 
+  const tenantName = isViewingAll
+    ? 'Todas as empresas'
+    : empresas.find(e => e.id === filterEmpresaId)?.nome
+      ?? veiculos.find(v => v.empresas?.nome)?.empresas?.nome
+      ?? 'FrotaMaq'
+
   return (
     <div>
       <Header title="Relatórios" />
 
-      <div className="space-y-4 px-4 py-4">
+      <div className="page-section">
         {isMotorista ? (
           <MotoristaTripHistory />
         ) : (
           <>
             {viewModes.length > 1 && (
-              <div className="flex flex-wrap rounded-xl bg-gray-100 p-1">
+              <div className="flex flex-wrap rounded-xl bg-surface-muted p-1">
                 {viewModes.map(mode => (
                   <button
                     key={mode.key}
                     onClick={() => changeTab(mode.key)}
                     className={`flex-1 rounded-lg py-2 px-2 text-xs font-medium transition-colors sm:text-sm ${
                       viewMode === mode.key
-                        ? 'bg-white text-action shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-surface text-action shadow-sm'
+                        : 'text-fg-muted hover:text-fg'
                     }`}
                   >
                     {mode.label}
@@ -368,10 +375,20 @@ export function ReportsPage() {
               </Card>
             )}
 
+            {viewMode !== 'pedidos' && (
+              <ExecutiveExportCard
+                profile={profile}
+                empresaId={filterEmpresaId}
+                tenantName={tenantName}
+                period={periodo}
+                veiculoId={veiculoId}
+                motoristaId={motoristaId}
+                includeCosts={canViewGlobalFinancialMetrics}
+              />
+            )}
+
             {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
-              </div>
+              <ListSkeleton rows={4} />
             ) : viewMode === 'pedidos' ? (
               <PedidosRelatorioPanel solicitacoes={solicitacoes} onRefresh={load} />
             ) : viewMode === 'executadas' ? (
@@ -403,34 +420,34 @@ export function ReportsPage() {
               canViewGlobalFinancialMetrics && (
                 <>
                   <button type="button" className="w-full text-left" onClick={() => setShowDrillDown(true)}>
-                    <Card className="text-center hover:bg-gray-50">
-                      <p className="text-sm text-gray-500">{periodLabel}</p>
-                      <p className="mt-1 text-3xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
+                    <Card className="text-center hover:border-action/40">
+                      <p className="text-sm text-fg-muted">{periodLabel}</p>
+                      <p className="mt-1 text-3xl font-bold text-fg">{formatCurrency(totalGeral)}</p>
                       <p className="mt-1 text-xs text-action">Toque para ver peças + mão de obra</p>
                     </Card>
                   </button>
 
                   <div className="grid grid-cols-2 gap-3">
                     <Card>
-                      <p className="text-xs text-gray-500">Mão de obra</p>
+                      <p className="text-xs text-fg-muted">Mão de obra</p>
                       <p className="text-lg font-semibold">{formatCurrency(totalMao)}</p>
                     </Card>
                     <Card>
-                      <p className="text-xs text-gray-500">Peças</p>
+                      <p className="text-xs text-fg-muted">Peças</p>
                       <p className="text-lg font-semibold">{formatCurrency(totalPecas)}</p>
                     </Card>
                   </div>
 
                   {veiculoId && (
                     <Card>
-                      <p className="text-sm text-gray-500">Custo do veículo no período</p>
-                      <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
+                      <p className="text-sm text-fg-muted">Custo do veículo no período</p>
+                      <p className="text-2xl font-bold text-fg">{formatCurrency(totalGeral)}</p>
                     </Card>
                   )}
 
                   {rankingData.length > 0 && (
                     <Card>
-                      <p className="mb-2 text-sm font-medium text-gray-700">Ranking de custo por veículo</p>
+                      <p className="mb-2 text-sm font-medium text-fg">Ranking de custo por veículo</p>
                       <ResponsiveContainer width="100%" height={240}>
                         <BarChart data={rankingData}>
                           <XAxis dataKey="name" />
@@ -444,7 +461,7 @@ export function ReportsPage() {
 
                   {costChartData.length > 0 && (
                     <Card>
-                      <p className="mb-2 text-sm font-medium text-gray-700">Impacto financeiro por tipo</p>
+                      <p className="mb-2 text-sm font-medium text-fg">Impacto financeiro por tipo</p>
                       <ResponsiveContainer width="100%" height={220}>
                         <PieChart>
                           <Pie data={costChartData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
@@ -460,20 +477,18 @@ export function ReportsPage() {
                   )}
 
                   <section>
-                    <h2 className="mb-3 text-sm font-semibold text-gray-900">Gasto por veículo</h2>
+                    <h2 className="mb-3 text-sm font-semibold text-fg">Gasto por veículo</h2>
                     {costByVehicle.length === 0 ? (
-                      <Card>
-                        <p className="py-4 text-center text-sm text-gray-500">Sem dados no período.</p>
-                      </Card>
+                      <EmptyState title="Sem dados no período" description="Ajuste as datas ou o veículo para ver o ranking de custos." />
                     ) : (
                       <div className="space-y-2">
                         {costByVehicle.map(v => (
                           <Card key={v.veiculo_id} className="flex items-center justify-between">
                             <div>
-                              <p className="font-medium text-gray-900">{v.modelo}</p>
-                              <p className="text-sm text-gray-500">{v.placa}</p>
+                              <p className="font-medium text-fg">{v.modelo}</p>
+                              <p className="text-sm text-fg-muted">{v.placa}</p>
                             </div>
-                            <p className="font-semibold text-gray-900">{formatCurrency(v.total)}</p>
+                            <p className="font-semibold text-fg">{formatCurrency(v.total)}</p>
                           </Card>
                         ))}
                       </div>
@@ -486,30 +501,15 @@ export function ReportsPage() {
         )}
       </div>
 
-      {showDrillDown && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowDrillDown(false)} />
-          <div className="relative z-10 max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl">
-            <h3 className="text-lg font-semibold">Discriminação do custo</h3>
-            <p className="text-sm text-gray-500">{periodLabel}</p>
-            <div className="mt-3 space-y-2">
-              {breakdown.length === 0 ? (
-                <p className="text-sm text-gray-500">Sem itens no período.</p>
-              ) : breakdown.map(item => (
-                <Card key={item.manutencaoId}>
-                  <p className="text-sm font-medium">{item.descricao}</p>
-                  <p className="text-xs text-gray-500">{item.placa} · {formatDate(item.dataHora)}</p>
-                  <p className="mt-1 text-sm">Mão de obra {formatCurrency(item.valorMaoDeObra)} · Peças {formatCurrency(item.valorPecas)}</p>
-                  <p className="font-semibold">{formatCurrency(item.valorTotal)}</p>
-                </Card>
-              ))}
-            </div>
-            <Button className="mt-4 w-full" variant="secondary" onClick={() => setShowDrillDown(false)}>
-              Fechar
-            </Button>
-          </div>
-        </div>
-      )}
+      <CostDrillDownDrawer
+        isOpen={showDrillDown}
+        onClose={() => setShowDrillDown(false)}
+        periodLabel={periodLabel}
+        totalGeral={totalGeral}
+        totalMao={totalMao}
+        totalPecas={totalPecas}
+        breakdown={breakdown}
+      />
 
       <MaintenanceDetailModal
         manutencao={selected}

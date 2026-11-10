@@ -4,6 +4,8 @@ import { ArrowLeft, BarChart3, Download } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { MaintenanceCard } from '@/components/MaintenanceCard'
 import { MaintenanceDetailModal } from '@/components/MaintenanceDetailModal'
 import { useAuth } from '@/contexts/AuthContext'
@@ -65,15 +67,13 @@ export function VehicleReportPage() {
     <div>
       <Header title="Relatório do Veículo" />
 
-      <div className="space-y-4 px-4 py-4">
+      <div className="page-section">
         <Link to={`/veiculos/${id}`} className="inline-flex items-center gap-1 text-sm text-action">
           <ArrowLeft className="h-4 w-4" /> Voltar ao veículo
         </Link>
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
-          </div>
+          <ListSkeleton rows={4} />
         ) : error ? (
           <Card>
             <p className="py-6 text-center text-sm text-danger">{error}</p>
@@ -84,9 +84,9 @@ export function VehicleReportPage() {
               <div className="mb-2 flex justify-center text-action">
                 <BarChart3 className="h-6 w-6" />
               </div>
-              <p className="text-sm text-gray-500">{nomeExibicao}</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">{formatCurrency(totalGeral)}</p>
-              <p className="mt-1 text-xs text-gray-400">Valor total em manutenções</p>
+              <p className="text-sm text-fg-muted">{nomeExibicao}</p>
+              <p className="mt-1 text-3xl font-bold text-fg">{formatCurrency(totalGeral)}</p>
+              <p className="mt-1 text-xs text-fg-subtle">Valor total em manutenções</p>
             </Card>
 
             {veiculo && (
@@ -98,13 +98,15 @@ export function VehicleReportPage() {
 
             {canViewMaintenance && (
               <section>
-                <h2 className="mb-3 text-sm font-semibold text-gray-900">
+                <h2 className="mb-3 text-sm font-semibold text-fg">
                   Manutenções ({manutencoes.length})
                 </h2>
                 {manutencoes.length === 0 ? (
-                  <Card>
-                    <p className="py-4 text-center text-sm text-gray-500">Nenhuma manutenção registrada.</p>
-                  </Card>
+                  <EmptyState
+                    icon={BarChart3}
+                    title="Nenhuma manutenção registrada"
+                    description="Ainda não há serviços lançados para este veículo."
+                  />
                 ) : (
                   <div className="space-y-2">
                     {manutencoes.map(m => (

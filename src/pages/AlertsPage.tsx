@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Info, Clock, CalendarClock, Wrench } from 'lucide-react'
+import { AlertTriangle, Info, Clock, CalendarClock, Wrench, Truck, Leaf } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Button } from '@/components/ui/Button'
 import { getAlertas, resolveAlerta } from '@/services/alerts'
@@ -50,28 +52,30 @@ export function AlertsPage() {
     alerta: AlertTriangle,
     reserva: CalendarClock,
     preventiva: Wrench,
+    viagem_atraso: Truck,
+    esg: Leaf,
   }
 
   return (
     <div>
       <Header title="Alertas" />
 
-      <div className="space-y-4 px-4 py-4">
+      <div className="page-section">
         {notifications.length > 0 && (
           <section>
-            <h2 className="mb-2 text-sm font-semibold text-gray-900">Central de notificações</h2>
+            <h2 className="mb-2 text-sm font-semibold text-fg">Central de notificações</h2>
             <div className="space-y-2">
               {notifications.map(n => {
                 const Icon = notificationIcon[n.tipo] ?? Info
                 return (
                   <Link key={n.id} to={n.href}>
-                    <Card className="flex items-start gap-3 hover:bg-gray-50">
+                    <Card className="flex items-start gap-3 hover:bg-surface-muted">
                       <div className="mt-0.5 rounded-lg bg-action/10 p-2 text-action">
                         <Icon className="h-4 w-4" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{n.titulo}</p>
-                        <p className="text-sm text-gray-600">{n.mensagem}</p>
+                        <p className="font-medium text-fg">{n.titulo}</p>
+                        <p className="text-sm text-fg-muted">{n.mensagem}</p>
                       </div>
                     </Card>
                   </Link>
@@ -87,7 +91,7 @@ export function AlertsPage() {
               key={f}
               onClick={() => setFilter(f)}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                filter === f ? 'bg-action text-white' : 'bg-gray-100 text-gray-600'
+                filter === f ? 'bg-action text-white' : 'bg-surface-muted text-fg-muted'
               }`}
             >
               {f === 'todos' ? 'Todos' : f === 'vencida' ? 'Vencidos' : 'Próximos'}
@@ -96,15 +100,15 @@ export function AlertsPage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
-          </div>
+          <ListSkeleton rows={4} />
         ) : filtered.length === 0 ? (
-          <Card>
-            <p className="py-8 text-center text-sm text-gray-500">Nenhum alerta ativo no banco.</p>
-          </Card>
+          <EmptyState
+            icon={AlertTriangle}
+            title="Nenhum alerta ativo"
+            description="Não há alertas de manutenção para os filtros selecionados."
+          />
         ) : (
-          <div className="space-y-2">
+          <div className="grid gap-3">
             {filtered.map(a => {
               const Icon = iconMap[a.tipo] ?? Info
               const vehicleName = a.veiculos
@@ -120,11 +124,11 @@ export function AlertsPage() {
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900">{vehicleName}</p>
-                      <p className="text-sm text-gray-600">{a.mensagem}</p>
+                      <p className="font-medium text-fg">{vehicleName}</p>
+                      <p className="text-sm text-fg-muted">{a.mensagem}</p>
                       <div className="mt-2 flex items-center gap-2">
                         <StatusBadge status={a.tipo} type="alerta" />
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-fg-subtle">
                           {new Date(a.data_vencimento).toLocaleDateString('pt-BR')}
                         </span>
                       </div>

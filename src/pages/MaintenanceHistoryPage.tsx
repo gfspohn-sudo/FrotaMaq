@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState, useMemo } from 'react'
+import { Wrench } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
-import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { MaintenanceCard } from '@/components/MaintenanceCard'
 import { MaintenanceDetailModal } from '@/components/MaintenanceDetailModal'
 import { concluirManutencao, getManutencoes } from '@/services/maintenance'
@@ -70,7 +72,7 @@ export function MaintenanceHistoryPage() {
     <div>
       <Header title="Histórico de Manutenções" />
 
-      <div className="px-4 pt-4">
+      <div className="page-section">
         <div className="mb-6 flex flex-wrap gap-2">
           {FILTERS.map(f => (
             <button
@@ -79,7 +81,7 @@ export function MaintenanceHistoryPage() {
               className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                 filter === f.key
                   ? 'bg-action text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-surface-muted text-fg-muted hover:bg-border'
               }`}
             >
               {f.label}
@@ -92,17 +94,15 @@ export function MaintenanceHistoryPage() {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-action border-t-transparent" />
-          </div>
+          <ListSkeleton rows={4} />
         ) : filtered.length === 0 ? (
-          <Card>
-            <p className="py-8 text-center text-sm text-gray-500">
-              Nenhuma manutenção encontrada para este filtro.
-            </p>
-          </Card>
+          <EmptyState
+            icon={Wrench}
+            title="Nenhuma manutenção encontrada"
+            description="Ajuste o filtro ou registre um novo serviço para este período."
+          />
         ) : (
-          <div className="space-y-3 pb-4">
+          <div className="grid gap-3">
             {filtered.map(m => {
               const status = getManutencaoStatus(m)
               const podeConcluir = canCompleteMaintenance && isManutencaoAtiva(status)

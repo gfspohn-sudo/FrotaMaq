@@ -6,6 +6,7 @@ import { VeiculoDisponibilidadeService } from '@/domain/services/VeiculoDisponib
 import { TenantScopeService } from '@/domain/services/TenantScopeService'
 import { UsuarioFactory } from '@/domain/entities/usuario/UsuarioFactory'
 import type { Usuario as UsuarioProfile, NovaReserva, StatusReserva } from '@/types/database'
+import { recordAuditEvent } from '@/application/services/AuditTrailService'
 
 export class ListReservasUseCase {
   private readonly reservaRepo: IReservaRepository
@@ -52,11 +53,22 @@ export class SolicitarReservaUseCase {
       return { data: null, error: new Error('Sem permissão para solicitar reservas.') }
     }
 
-    if (!profile?.id || !profile.empresa_id) {
-      return { data: null, error: new Error('Perfil incompleto para reserva.') }
+    if (!input.veiculo_id) {
+      return { data: null, error: new Error('Selecione o veículo da viagem.') }
+    }
+    if (!input.destino?.trim()) {
+      return { data: null, error: new Error('Informe o destino da viagem.') }
+    }
+    if (!input.data_viagem || Number.isNaN(Date.parse(input.data_viagem))) {
+      return { data: null, error: new Error('Informe uma data da viagem válida.') }
     }
 
-    const veiculoRes = await this.veiculoRepo.findById(input.veiculo_id, profile.empresa_id)
+    const empresaId = input.empresa_id || profile?.empresa_id
+    if (!profile?.id || !empresaId) {
+      return { data: null, error: new Error('Perfil incompleto: empresa não identificada para gravar a viagem.') }
+    }
+
+    const veiculoRes = await this.veiculoRepo.findById(input.veiculo_id, empresaId)
     if (veiculoRes.error || !veiculoRes.data) {
       return { data: null, error: veiculoRes.error ?? new Error('Veículo não encontrado.') }
     }
@@ -86,14 +98,26 @@ export class SolicitarReservaUseCase {
     const { data, error } = await this.reservaRepo.create({
       veiculo_id: input.veiculo_id,
       motorista_id: profile.id,
-      empresa_id: profile.empresa_id,
+      empresa_id: empresaId,
       data_viagem: input.data_viagem,
-      destino: input.destino,
+      destino: input.destino.trim(),
       km_ida_volta: input.km_ida_volta,
       km_inicial: veiculo.kmAtual.value,
     })
 
-    return { data: data?.toDTO() ?? null, error }
+    const dto = data?.toDTO() ?? null
+    if (dto) {
+      await recordAuditEvent({
+        acao: 'viagem_criada',
+        profile,
+        empresaId,
+        veiculoId: dto.veiculo_id,
+        reservaId: dto.id,
+        detalhe: dto.destino,
+      })
+    }
+
+    return { data: dto, error }
   }
 }
 
@@ -223,6 +247,14 @@ export class FinalizarViagemUseCase {
         { km_atual: novaKm, status: 'disponivel' },
         scoped.empresaId,
       )
+      await recordAuditEvent({
+        acao: 'veiculo_liberado',
+        profile,
+        empresaId: scoped.empresaId ?? data.empresaId,
+        veiculoId: veiculo.id,
+        reservaId: data.id,
+        detalhe: `Viagem finalizada · ${distancia.toLocaleString('pt-BR')} km`,
+      })
     }
 
     return { data: { ...data.toDTO(), km_percorrido: distancia }, error: null }

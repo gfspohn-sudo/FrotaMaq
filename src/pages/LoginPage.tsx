@@ -124,10 +124,10 @@ export function LoginPage() {
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${BACKGROUND_IMAGE})` }}
       />
-      <div className="absolute inset-0 bg-action/75 backdrop-blur-[2px]" />
-      <div className="absolute inset-0 bg-gradient-to-b from-navy-900/40 via-action/60 to-navy-900/80" />
+      <div className="absolute inset-0 bg-[#090d16]/80 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#090d16]/70 via-action/40 to-[#090d16]/90" />
 
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 mx-auto w-full max-w-md">
         <div className="mb-6 flex flex-col items-center text-white">
           <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
             <Truck className="h-8 w-8" />
@@ -136,12 +136,12 @@ export function LoginPage() {
           <p className="mt-1 text-sm text-white/80">Gestão de Frotas e Máquinas</p>
         </div>
 
-        <div className="rounded-2xl bg-white/95 p-6 shadow-2xl backdrop-blur-md sm:p-8">
+        <div className="rounded-xl border border-white/10 bg-surface/95 p-6 shadow-2xl backdrop-blur-md sm:p-8">
           <div className="mb-6 text-center">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-fg">
               {mode === 'login' ? 'Entrar na sua conta' : 'Criar nova conta'}
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-fg-muted">
               {mode === 'login'
                 ? 'Acesse o painel de gestão da frota'
                 : 'Preencha os dados para se cadastrar'}
@@ -170,12 +170,12 @@ export function LoginPage() {
               />
 
               <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-gray-600">
+                <label className="flex items-center gap-2 text-sm text-fg-muted">
                   <input
                     type="checkbox"
                     checked={remember}
                     onChange={e => setRemember(e.target.checked)}
-                    className="rounded border-gray-300 text-action focus:ring-action"
+                    className="rounded border-border text-action focus:ring-action"
                   />
                   Lembrar-me
                 </label>
@@ -194,11 +194,11 @@ export function LoginPage() {
                 <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">{success}</p>
               )}
 
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              <Button type="submit" className="w-full" size="lg" loading={loading}>
                 {loading ? 'Entrando...' : 'Entrar'}
               </Button>
 
-              <p className="text-center text-sm text-gray-600">
+              <p className="text-center text-sm text-fg-muted">
                 Não tem uma conta?{' '}
                 <button
                   type="button"
@@ -211,10 +211,10 @@ export function LoginPage() {
 
               <div className="relative my-2">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200" />
+                  <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-white px-2 text-gray-500">ou</span>
+                  <span className="bg-surface px-2 text-fg-muted">ou</span>
                 </div>
               </div>
 
@@ -263,7 +263,7 @@ export function LoginPage() {
                 onChange={e => setChaveConvite(e.target.value)}
                 required
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-fg-muted">
                 Use a chave fornecida pelo gestor da sua empresa. O perfil (Motorista ou Mecânico) é definido automaticamente pela chave.
               </p>
 
@@ -274,11 +274,11 @@ export function LoginPage() {
                 </div>
               )}
 
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              <Button type="submit" className="w-full" size="lg" loading={loading}>
                 {loading ? 'Cadastrando...' : 'Criar conta'}
               </Button>
 
-              <p className="text-center text-sm text-gray-600">
+              <p className="text-center text-sm text-fg-muted">
                 Já tem uma conta?{' '}
                 <button
                   type="button"
