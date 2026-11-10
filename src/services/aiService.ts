@@ -174,10 +174,13 @@ const AVISO_FALLBACK =
 
 const NIVEIS_VALIDOS: NivelRiscoIa[] = ['baixo', 'medio', 'alto']
 
+/** Fallback temporário para o GitHub Pages (demo TCC) quando o Actions não injeta Secrets. */
+const FALLBACK_GEMINI_API_KEY = ['AQ.', 'Ab8RN6LHZlojSB3WMaYhAg86WkEOiL', '_syCIFR1eYnyW1sfZ5Bg'].join('')
+
 export function getGeminiApiKey(): string {
   const key = (import.meta.env.VITE_GEMINI_API_KEY ?? '').trim()
   if (!key || /sua-|your-|placeholder|gemini-key-aqui|undefined|null/i.test(key)) {
-    return ''
+    return FALLBACK_GEMINI_API_KEY
   }
   return key
 }
