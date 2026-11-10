@@ -8,6 +8,7 @@ import {
   assertZeroRows,
   createAnonClient,
   isLiveSupabaseConfigured,
+  isTransportError,
 } from './helpers'
 import type { Usuario } from '@/types/database'
 
@@ -46,71 +47,107 @@ describe('IDOR — isolamento de tenant (RLS)', () => {
     expect(rows).toEqual([{ id: 'v1', empresa_id: 'emp-a' }])
   })
 
-  it.skipIf(!live)('cliente anônimo não lê veículos nem reservas de outro tenant', async () => {
-    const client = createAnonClient()
+  it.skipIf(!live)('cliente anônimo não lê veículos nem reservas de outro tenant', async ({ skip }) => {
+    try {
+      const client = createAnonClient()
 
-    const veiculos = await client.from('veiculos').select('id, empresa_id')
-    const reservas = await client.from('reservas').select('id, empresa_id')
+      const veiculos = await client.from('veiculos').select('id, empresa_id')
+      const reservas = await client.from('reservas').select('id, empresa_id')
 
-    assertZeroRows(veiculos.data)
-    assertZeroRows(reservas.data)
+      assertZeroRows(veiculos.data)
+      assertZeroRows(reservas.data)
+    } catch (error) {
+      if (isTransportError(error)) {
+        skip()
+        return
+      }
+      throw error
+    }
   }, 30_000)
 
-  it.skipIf(!live)('UPDATE em veículo e reserva de outra empresa retorna 0 linhas', async () => {
-    const client = createAnonClient()
+  it.skipIf(!live)('UPDATE em veículo e reserva de outra empresa retorna 0 linhas', async ({ skip }) => {
+    try {
+      const client = createAnonClient()
 
-    const veiculo = await client
-      .from('veiculos')
-      .update({ nome_exibicao: 'idor-probe' })
-      .eq('id', FOREIGN_RECORD_ID)
-      .eq('empresa_id', FOREIGN_EMPRESA_ID)
-      .select('id')
+      const veiculo = await client
+        .from('veiculos')
+        .update({ nome_exibicao: 'idor-probe' })
+        .eq('id', FOREIGN_RECORD_ID)
+        .eq('empresa_id', FOREIGN_EMPRESA_ID)
+        .select('id')
 
-    const reserva = await client
-      .from('reservas')
-      .update({ destino: 'idor-probe' })
-      .eq('id', FOREIGN_RECORD_ID)
-      .eq('empresa_id', FOREIGN_EMPRESA_ID)
-      .select('id')
+      const reserva = await client
+        .from('reservas')
+        .update({ destino: 'idor-probe' })
+        .eq('id', FOREIGN_RECORD_ID)
+        .eq('empresa_id', FOREIGN_EMPRESA_ID)
+        .select('id')
 
-    assertZeroRows(veiculo.data)
-    assertZeroRows(reserva.data)
+      assertZeroRows(veiculo.data)
+      assertZeroRows(reserva.data)
+    } catch (error) {
+      if (isTransportError(error)) {
+        skip()
+        return
+      }
+      throw error
+    }
   }, 30_000)
 
-  it.skipIf(!live)('gestor autenticado não lista registros de outra empresa_id', async () => {
+  it.skipIf(!live)('gestor autenticado não lista registros de outra empresa_id', async ({ skip }) => {
     const email = process.env.SECURITY_TEST_EMAIL?.trim()
     const password = process.env.SECURITY_TEST_PASSWORD?.trim()
     if (!email || !password) return
 
     const client = createAnonClient()
-    const { data: session, error } = await client.auth.signInWithPassword({ email, password })
-    if (error || !session.user) return
-
-    const { data: profile } = await client
-      .from('usuarios')
-      .select('empresa_id, perfil')
-      .eq('id', session.user.id)
-      .maybeSingle()
-
-    if (!profile || profile.perfil === 'super_admin' || !profile.empresa_id) {
-      await client.auth.signOut()
-      return
+    let session
+    try {
+      const result = await client.auth.signInWithPassword({ email, password })
+      session = result.data
+      if (result.error || !session.user) return
+    } catch (error) {
+      if (isTransportError(error)) {
+        skip()
+        return
+      }
+      throw error
     }
 
-    const veiculos = await client
-      .from('veiculos')
-      .select('id, empresa_id')
-      .eq('empresa_id', FOREIGN_EMPRESA_ID)
+    if (!session?.user) return
 
-    const reservas = await client
-      .from('reservas')
-      .select('id, empresa_id')
-      .eq('empresa_id', FOREIGN_EMPRESA_ID)
+    try {
+      const { data: profile } = await client
+        .from('usuarios')
+        .select('empresa_id, perfil')
+        .eq('id', session.user.id)
+        .maybeSingle()
 
-    assertZeroRows(veiculos.data)
-    assertZeroRows(reservas.data)
-    expect((veiculos.data ?? []).every(row => row.empresa_id !== FOREIGN_EMPRESA_ID)).toBe(true)
+      if (!profile || profile.perfil === 'super_admin' || !profile.empresa_id) {
+        await client.auth.signOut()
+        return
+      }
 
-    await client.auth.signOut()
+      const veiculos = await client
+        .from('veiculos')
+        .select('id, empresa_id')
+        .eq('empresa_id', FOREIGN_EMPRESA_ID)
+
+      const reservas = await client
+        .from('reservas')
+        .select('id, empresa_id')
+        .eq('empresa_id', FOREIGN_EMPRESA_ID)
+
+      assertZeroRows(veiculos.data)
+      assertZeroRows(reservas.data)
+      expect((veiculos.data ?? []).every(row => row.empresa_id !== FOREIGN_EMPRESA_ID)).toBe(true)
+
+      await client.auth.signOut()
+    } catch (error) {
+      if (isTransportError(error)) {
+        skip()
+        return
+      }
+      throw error
+    }
   }, 30_000)
 })

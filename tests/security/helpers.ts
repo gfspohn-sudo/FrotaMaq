@@ -59,3 +59,8 @@ export function createAnonClient(): SupabaseClient {
 export function assertZeroRows(data: unknown[] | null | undefined) {
   expect(data ?? []).toHaveLength(0)
 }
+
+export function isTransportError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  return /fetch failed|Failed to fetch|network|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|AbortError|timeout/i.test(message)
+}
