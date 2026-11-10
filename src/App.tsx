@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { getRouterBasename } from '@/lib/appBase'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { TenantProvider } from '@/contexts/TenantContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -27,7 +28,7 @@ function SuperAdminRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={getRouterBasename()}>
       <SupabaseInit />
       <AuthProvider>
         <Routes>
