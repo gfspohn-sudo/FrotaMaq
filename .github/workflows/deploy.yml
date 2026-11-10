@@ -18,6 +18,13 @@ jobs:
   build:
     name: Build Vite app
     runs-on: ubuntu-latest
+    environment: github-pages
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+      VITE_BASE_PATH: '/FrotaMaq/'
+      VITE_DEPLOY_TARGET: github-pages
     outputs:
       has_vercel_token: ${{ steps.vercel_flag.outputs.present }}
     steps:
@@ -33,14 +40,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify production secrets
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "Defina os Secrets VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no repositório (Settings > Secrets and variables > Actions) ou no environment github-pages."
+            exit 1
+          fi
+          echo "Secrets VITE_SUPABASE_* presentes para o build."
+
       - name: Build application
         run: npm run build
         env:
-          VITE_BASE_PATH: /FrotaMaq/
-          VITE_DEPLOY_TARGET: github-pages
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_BASE_PATH: '/FrotaMaq/'
 
       - name: Upload GitHub Pages artifact
         continue-on-error: true
