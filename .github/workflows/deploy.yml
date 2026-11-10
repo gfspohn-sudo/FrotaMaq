@@ -40,14 +40,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify production secrets
-        run: |
-          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
-            echo "Defina os Secrets VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no repositório (Settings > Secrets and variables > Actions) ou no environment github-pages."
-            exit 1
-          fi
-          echo "Secrets VITE_SUPABASE_* presentes para o build."
-
       - name: Build application
         run: npm run build
         env:

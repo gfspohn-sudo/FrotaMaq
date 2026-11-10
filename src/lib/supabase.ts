@@ -1,7 +1,30 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? ''
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? ''
+/** Anon key é pública por design; o RLS do projeto protege os dados. Fallback para o GitHub Pages sem Secrets. */
+const FALLBACK_SUPABASE_URL = 'https://aechddecxuvysrgpbord.supabase.co'
+const FALLBACK_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFlY2hkZGVjeHV2eXNyZ3Bib3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NjgyNTUsImV4cCI6MjEwMjA0NDI1NX0.598xZ0Vrw0vx93dpfc7wdSy3w9bWOqYTf3B_OqFtbbg'
+
+function resolvePublicSupabaseEnv(value: string | undefined, fallback: string) {
+  const trimmed = (value ?? '').trim()
+  if (!trimmed) return fallback
+  const lower = trimmed.toLowerCase()
+  if (
+    lower.includes('seu-projeto')
+    || lower.includes('your-project')
+    || lower.includes('example.supabase.co')
+    || lower.includes('unconfigured')
+    || lower.includes('sua-anon-key')
+    || lower.includes('your-anon-key')
+    || lower.includes('anon-key-aqui')
+  ) {
+    return fallback
+  }
+  return trimmed
+}
+
+const supabaseUrl = resolvePublicSupabaseEnv(import.meta.env.VITE_SUPABASE_URL, FALLBACK_SUPABASE_URL)
+const supabaseAnonKey = resolvePublicSupabaseEnv(import.meta.env.VITE_SUPABASE_ANON_KEY, FALLBACK_SUPABASE_ANON_KEY)
 const isConfigured = Boolean(supabaseUrl && supabaseAnonKey)
 
 export const NETWORK_ERROR_USER_MESSAGE =
@@ -14,10 +37,10 @@ export const supabaseConfig = {
   isConfigured,
 }
 
-/** createClient exige strings não vazias; placeholders só valem se o .env estiver ausente. */
+/** createClient exige strings não vazias; o fallback público cobre o Pages sem Secrets. */
 export const supabase = createClient(
-  supabaseUrl || 'https://unconfigured.invalid',
-  supabaseAnonKey || 'unconfigured',
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       persistSession: true,
