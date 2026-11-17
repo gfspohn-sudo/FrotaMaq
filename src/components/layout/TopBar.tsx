@@ -1,6 +1,6 @@
 import { Languages, Menu, Moon, Sun } from 'lucide-react'
+import { FrotaMaqLogo } from '@/components/FrotaMaqLogo'
 import { PERFIL_LABELS } from '@/lib/tenantFilter'
-import { getInitials } from '@/lib/uiHelpers'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -29,10 +29,8 @@ export function TopBar({ onMenuClick }: TopBarProps) {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-action/10 text-xs font-semibold text-action lg:hidden">
-            {getInitials(profile?.nome)}
-          </div>
-          <div className="min-w-0">
+          <FrotaMaqLogo size={32} withWordmark compact className="min-w-0 lg:hidden" />
+          <div className="hidden min-w-0 lg:block">
             <p className="text-xs text-fg-muted">{t('greeting.welcome')}</p>
             <p className="truncate text-sm font-semibold text-fg sm:text-base">
               {t('greeting.hello')}, {firstName}

@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { FrotaMaqLogo } from '@/components/FrotaMaqLogo'
 import { ALL_EMPRESAS, ALL_EMPRESAS_LABEL } from '@/lib/tenantFilter'
 import { getInitials } from '@/lib/uiHelpers'
 import { useAuth } from '@/contexts/AuthContext'
@@ -30,7 +31,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside className="flex h-full w-64 flex-col border-r border-border bg-surface/90 backdrop-blur-xl">
       <div className="border-b border-border px-4 py-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-action">{t('app.name')}</p>
+        <FrotaMaqLogo size={36} withWordmark subtitle="ESG · IA" />
         <div className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-surface-muted/70 px-3 py-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-action/15 text-xs font-semibold text-action">
             {getInitials(tenantName)}

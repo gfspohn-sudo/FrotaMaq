@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Truck } from 'lucide-react'
+import { FrotaMaqLogo } from '@/components/FrotaMaqLogo'
 import { supabase, formatDetailedError } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
@@ -129,11 +129,9 @@ export function LoginPage() {
 
       <div className="relative z-10 mx-auto w-full max-w-md">
         <div className="mb-6 flex flex-col items-center text-white">
-          <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
-            <Truck className="h-8 w-8" />
-          </div>
-          <h1 className="text-2xl font-bold">FrotaMaq</h1>
-          <p className="mt-1 text-sm text-white/80">Gestão de Frotas e Máquinas</p>
+          <FrotaMaqLogo size={64} />
+          <h1 className="mt-3 text-2xl font-bold">FrotaMaq</h1>
+          <p className="mt-1 text-sm text-white/80">Gestão Inteligente de Frotas & ESG</p>
         </div>
 
         <div className="rounded-xl border border-white/10 bg-surface/95 p-6 shadow-2xl backdrop-blur-md sm:p-8">
