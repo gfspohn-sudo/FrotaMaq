@@ -14,7 +14,7 @@ const BACKGROUND_IMAGE =
   'https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=1920&q=80'
 
 export function LoginPage() {
-  const { signUp, signInWithGoogle, connectionError } = useAuth()
+  const { signUp, connectionError } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<AuthMode>('login')
   const [email, setEmail] = useState('')
@@ -112,12 +112,6 @@ export function LoginPage() {
     navigate('/')
   }
 
-  async function handleGoogleLogin() {
-    resetMessages()
-    const { error: googleError } = await signInWithGoogle()
-    if (googleError) setError(googleError)
-  }
-
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 py-8">
       <div
@@ -206,25 +200,6 @@ export function LoginPage() {
                   Cadastre-se
                 </button>
               </p>
-
-              <div className="relative my-2">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-surface px-2 text-fg-muted">ou</span>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                size="lg"
-                onClick={handleGoogleLogin}
-              >
-                Entrar com Google
-              </Button>
             </form>
           ) : (
             <form onSubmit={handleSignup} className="space-y-4">

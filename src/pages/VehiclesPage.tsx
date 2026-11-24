@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { solicitarAcessoRelatorio } from '@/services/solicitacoesRelatorio'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Search, Car, Plus, Database, Trash2, Eye, Pencil, History } from 'lucide-react'
+import { Search, Car, Plus, Trash2, Eye, Pencil, History } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -12,8 +12,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ListSkeleton } from '@/components/ui/Skeleton'
 import { DataTable, DataTableHead, DataTableBody, DataTh, DataTd, DataTr } from '@/components/ui/DataTable'
 import { VehicleFormModal } from '@/components/VehicleFormModal'
-import { getVeiculos, seedTestVeiculos, deleteAllVeiculos } from '@/services/vehicles'
-import { getExpectedMockMaintenanceCount, getExpectedMockReservaCount } from '@/services/mockSeed'
+import { getVeiculos, deleteAllVeiculos } from '@/services/vehicles'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useTenant } from '@/contexts/TenantContext'
 import type { Veiculo, StatusVeiculo } from '@/types/database'
@@ -21,14 +20,12 @@ import { STATUS_VEICULO_LABELS } from '@/types/database'
 import { formatVehicleSubtitle, parseVehicleStatusParam } from '@/lib/vehicleDisplay'
 import { PlateBadge } from '@/components/ui/PlateBadge'
 import { getVeiculoMarca, getVeiculoModelo } from '@/lib/dbCompat'
-import { formatErrorMessage } from '@/lib/formatError'
 import { safeHttpsUrl } from '@/lib/safeMediaUrl'
 
 export function VehiclesPage() {
   const { profile } = useAuth()
   const {
     canManageVehicles,
-    canSeedTestData,
     canDeleteAllVehicles,
     canRequestReserva,
     canRequestReportAccess,
@@ -51,7 +48,6 @@ export function VehiclesPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingVeiculo, setEditingVeiculo] = useState<Veiculo | null>(null)
   const [loading, setLoading] = useState(true)
-  const [seeding, setSeeding] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [feedback, setFeedback] = useState('')
@@ -84,30 +80,6 @@ export function VehiclesPage() {
     return () => clearTimeout(timeout)
   }, [loadVeiculos])
 
-  async function handleSeedTestVehicles() {
-    setFeedback('')
-    setSeeding(true)
-
-    const { inserted, skipped, maintenancesInserted, reservasInserted, error } = await seedTestVeiculos(filterEmpresaId, profile)
-    setSeeding(false)
-
-    if (error) {
-      setFeedback(`Erro ao popular dados: ${formatErrorMessage(error)}`)
-      return
-    }
-
-    const expectedMaint = getExpectedMockMaintenanceCount()
-    const expectedReservas = getExpectedMockReservaCount()
-    setFeedback(
-      `${inserted > 0 ? `${inserted} veículo(s) criado(s). ` : ''}` +
-      `${maintenancesInserted ?? expectedMaint} manutenção(ões) e ${reservasInserted ?? expectedReservas} reserva(s)/viagem(ns) geradas` +
-      (skipped > 0 ? ` (${skipped} veículos já existiam).` : '.') +
-      ' Dashboards atualizados.',
-    )
-
-    await loadVeiculos()
-  }
-
   async function handleDeleteAll() {
     setShowDeleteConfirm(false)
     setFeedback('')
@@ -136,34 +108,18 @@ export function VehiclesPage() {
               <Plus className="h-4 w-4" />
               Cadastrar Novo Veículo
             </Button>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              {canSeedTestData && (
-                <>
-                  <Button
-                    variant="secondary"
-                    className="flex-1"
-                    onClick={handleSeedTestVehicles}
-                    loading={seeding}
-                    disabled={seeding || deleting}
-                  >
-                    <Database className="h-4 w-4" />
-                    {seeding ? 'Populando...' : 'Popular Veículos de Teste'}
-                  </Button>
-                  {canDeleteAllVehicles && (
-                    <Button
-                      variant="danger"
-                      className="flex-1 border border-danger"
-                      onClick={() => setShowDeleteConfirm(true)}
-                      loading={deleting}
-                      disabled={seeding || deleting}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {deleting ? 'Excluindo...' : 'Excluir Todos os Veículos'}
-                    </Button>
-                  )}
-                </>
-              )}
-            </div>
+            {canDeleteAllVehicles && (
+              <Button
+                variant="danger"
+                className="w-full border border-danger"
+                onClick={() => setShowDeleteConfirm(true)}
+                loading={deleting}
+                disabled={deleting}
+              >
+                <Trash2 className="h-4 w-4" />
+                {deleting ? 'Excluindo...' : 'Excluir Todos os Veículos'}
+              </Button>
+            )}
           </div>
         )}
 
@@ -220,7 +176,7 @@ export function VehiclesPage() {
             title="Nenhum veículo encontrado"
             description={
               canManageVehicles
-                ? 'Cadastre o primeiro veículo da frota ou use os dados de teste para começar.'
+                ? 'Cadastre o primeiro veículo da frota para começar.'
                 : 'Não há veículos para exibir com os filtros atuais.'
             }
             action={

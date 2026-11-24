@@ -8,7 +8,6 @@ import {
   logSupabaseFailure,
   classifySupabaseError,
   formatSupabaseError,
-  getOAuthRedirectUrl,
 } from '@/lib/supabase'
 import { isTransientSupabaseError } from '@/lib/supabaseResilience'
 import { runSupabaseQuery } from '@/lib/supabaseQuery'
@@ -33,7 +32,6 @@ interface AuthContextType {
   connectionError: string | null
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (data: SignUpData) => Promise<{ error: string | null; needsConfirmation: boolean }>
-  signInWithGoogle: () => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -252,25 +250,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function signInWithGoogle() {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: getOAuthRedirectUrl() },
-      })
-
-      if (error) {
-        console.error('Erro no Supabase:', error)
-        return { error: formatAuthError(error.message, { status: error.status, code: error.code }) }
-      }
-
-      return { error: null }
-    } catch (err) {
-      console.error('Erro no Supabase:', err)
-      return { error: formatAuthError(err instanceof Error ? err.message : 'Erro de conexão') }
-    }
-  }
-
   async function signOut() {
     await supabase.auth.signOut()
     setProfile(null)
@@ -282,7 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, connectionError, signIn, signUp, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, connectionError, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   )
