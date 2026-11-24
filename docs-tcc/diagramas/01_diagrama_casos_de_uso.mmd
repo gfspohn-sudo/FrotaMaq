@@ -1,0 +1,76 @@
+%%{init: {"theme": "base", "flowchart": {"nodeSpacing": 24, "rankSpacing": 70, "padding": 8, "htmlLabels": true, "useMaxWidth": false, "curve": "linear"}}}%%
+flowchart TB
+  classDef actor fill:#0f172a,stroke:#2563eb,stroke-width:2px,color:#f8fafc
+  classDef uc fill:#dbeafe,stroke:#1d4ed8,stroke-width:1.4px,color:#0f172a
+  classDef login fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#064e3b
+
+  SA["Super Admin"]
+  G["Gestor"]
+  ME["Mecanico"]
+  MO["Motorista"]
+  SA ~~~ G ~~~ ME ~~~ MO
+
+  UC1(["Gerenciar Empresas"])
+  UC2(["Gerenciar Veiculos"])
+  UC3(["Registrar Manutencao"])
+  UC4(["Solicitar Reserva"])
+  UC1 ~~~ UC2 ~~~ UC3 ~~~ UC4
+
+  UC5(["Aprovar ou Recusar Viagem"])
+  UC6(["Calcular ESG"])
+  UC7(["Simular Transicao"])
+  UC8(["Consultar Co-Piloto IA"])
+  UC5 ~~~ UC6 ~~~ UC7 ~~~ UC8
+
+  UC9(["Emitir Relatorios"])
+  UC10(["Auditar Operacao"])
+  UC11(["Visualizar Dashboard"])
+  UC12(["Visualizar Alertas"])
+  UC9 ~~~ UC10 ~~~ UC11 ~~~ UC12
+
+  L(["Fazer Login"])
+  REC(["Recuperar Senha"])
+  L ~~~ REC
+
+  SA --> UC1
+  SA --> UC2
+  SA --> UC5
+  SA --> UC9
+  SA --> UC10
+  SA --> UC11
+  G --> UC2
+  G --> UC3
+  G --> UC5
+  G --> UC6
+  G --> UC7
+  G --> UC8
+  G --> UC9
+  G --> UC11
+  G --> UC12
+  ME --> UC3
+  ME --> UC11
+  ME --> UC12
+  MO --> UC4
+  MO --> UC6
+  MO --> UC11
+  SA --> REC
+  G --> REC
+  ME --> REC
+  MO --> REC
+
+  UC1 -.->|include| L
+  UC2 -.->|include| L
+  UC3 -.->|include| L
+  UC4 -.->|include| L
+  UC5 -.->|include| L
+  UC6 -.->|include| L
+  UC7 -.->|include| L
+  UC8 -.->|include| L
+  UC9 -.->|include| L
+  UC10 -.->|include| L
+  UC11 -.->|include| L
+  UC12 -.->|include| L
+
+  class SA,G,ME,MO actor
+  class L,REC login
+  class UC1,UC2,UC3,UC4,UC5,UC6,UC7,UC8,UC9,UC10,UC11,UC12 uc

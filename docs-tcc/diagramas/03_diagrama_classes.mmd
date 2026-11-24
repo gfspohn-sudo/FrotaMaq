@@ -1,0 +1,101 @@
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "fontFamily": "Inter, Arial, sans-serif"}}}%%
+classDiagram
+  class Empresa {
+    +UUID id
+    +string nome
+    +string slug
+    +string cnpj
+    +datetime createdAt
+  }
+  class Usuario {
+    <<abstract>>
+    +UUID id
+    +UUID empresaId
+    +string nome
+    +string email
+    +PerfilUsuario perfil
+    +podeGerenciarVeiculos() bool
+    +podeRegistrarManutencao() bool
+    +podeSolicitarReserva() bool
+    +podeAprovarReserva() bool
+  }
+  class SuperAdmin
+  class Gestor
+  class Mecanico
+  class Motorista
+  class Veiculo {
+    +UUID id
+    +UUID empresaId
+    +string placa
+    +string nomeExibicao
+    +int kmAtual
+    +int intervaloKm
+    +string status
+    +estaEmOperacao() bool
+    +atualizarQuilometragem(km)
+    +encaminharParaManutencao()
+  }
+  class Manutencao {
+    +UUID id
+    +UUID empresaId
+    +UUID veiculoId
+    +string tipo
+    +string status
+    +Money valor
+    +int proximaManutencaoKm
+    +calcularValorTotal() Money
+    +calcularUrgencia() 
+  }
+  class ReservaViagem {
+    +UUID id
+    +UUID empresaId
+    +UUID veiculoId
+    +UUID motoristaId
+    +datetime dataViagem
+    +string destino
+    +int kmIdaVolta
+    +string status
+    +string motivoRecusa
+    +aprovar()
+    +rejeitar(motivo)
+    +finalizar(kmFinal)
+  }
+  class RegistroESG {
+    <<calculado>>
+    +int km
+    +string combustivel
+    +float litros
+    +float kgCo2
+    +float arvores
+    +calculateTripEmissions()
+    +simulateEnergyTransition()
+    +calculateEsgFleetScore()
+  }
+  class Alerta {
+    <<derivado>>
+    +UUID veiculoId
+    +string prioridade
+    +string mensagem
+    +bool atrasada
+  }
+  class AuditoriaLog {
+    +UUID id
+    +UUID empresaId
+    +UUID veiculoId
+    +string acao
+    +string descricao
+    +datetime createdAt
+  }
+
+  Usuario <|-- SuperAdmin
+  Usuario <|-- Gestor
+  Usuario <|-- Mecanico
+  Usuario <|-- Motorista
+  Empresa "1" --> "*" Usuario : possui
+  Empresa "1" --> "*" Veiculo : possui
+  Veiculo "1" --> "*" Manutencao : recebe
+  Veiculo "1" --> "*" ReservaViagem : alocado
+  Motorista "1" --> "*" ReservaViagem : solicita
+  ReservaViagem --> RegistroESG : deriva CO2
+  Veiculo --> Alerta : dispara
+  Empresa "1" --> "*" AuditoriaLog : registra

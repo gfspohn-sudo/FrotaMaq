@@ -1,0 +1,83 @@
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "12px", "fontFamily": "Arial, Helvetica, sans-serif"}, "er": {"fontSize": 12, "entityPadding": 18, "useMaxWidth": false, "layoutDirection": "TB"}}}%%
+erDiagram
+  EMPRESA_ ||--o{ USUARIO_ : empresa_id
+  EMPRESA_ ||--o{ VEICULO_ : empresa_id
+  EMPRESA_ ||--o{ OS : empresa_id
+  EMPRESA_ ||--o{ RESERVA_ : empresa_id
+  EMPRESA_ ||--o{ CONVITE_ : empresa_id
+  EMPRESA_ ||--o{ RELAT_ : empresa_id
+  EMPRESA_ ||--o{ AUDIT : empresa_id
+  VEICULO_ ||--o{ OS : veiculo_id
+  VEICULO_ ||--o{ RESERVA_ : veiculo_id
+  VEICULO_ ||--o{ RELAT_ : veiculo_id
+  VEICULO_ ||--o{ AUDIT : veiculo_id
+  USUARIO_ ||--o{ RESERVA_ : motorista_id
+  USUARIO_ ||--o{ RELAT_ : solicitante_id
+
+  EMPRESA_ {
+    uuid id PK
+    text nome
+    text slug UK
+    text cnpj
+    timestamptz created_at
+  }
+  USUARIO_ {
+    uuid id PK
+    uuid empresa_id FK
+    text nome
+    text email UK
+    enum perfil
+    timestamptz created_at
+  }
+  VEICULO_ {
+    uuid id PK
+    uuid empresa_id FK
+    text nome_exibicao
+    text placa
+    int km_atual
+    int intervalo_km
+    text status
+  }
+  OS {
+    uuid id PK
+    uuid empresa_id FK
+    uuid veiculo_id FK
+    text descricao
+    numeric valor_total
+    jsonb pecas
+    text tipo
+    text status
+  }
+  RESERVA_ {
+    uuid id PK
+    uuid empresa_id FK
+    uuid veiculo_id FK
+    uuid motorista_id FK
+    timestamptz data_viagem
+    text destino
+    int km_ida_volta
+    enum status
+    text motivo_recusa
+  }
+  CONVITE_ {
+    uuid id PK
+    uuid empresa_id FK
+    text token UK
+    enum perfil
+    boolean ativa
+  }
+  RELAT_ {
+    uuid id PK
+    uuid empresa_id FK
+    uuid veiculo_id FK
+    uuid solicitante_id FK
+    enum status
+  }
+  AUDIT {
+    uuid id PK
+    uuid empresa_id FK
+    uuid veiculo_id FK
+    text acao
+    text descricao
+    timestamptz created_at
+  }

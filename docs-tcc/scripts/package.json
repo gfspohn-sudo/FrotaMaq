@@ -1,0 +1,11 @@
+{
+  "name": "frotamaq-docs-export",
+  "private": true,
+  "type": "module",
+  "description": "Exporta os Markdown do TCC para DOCX e PDF acadêmicos.",
+  "dependencies": {
+    "docx": "^9.16.0",
+    "marked": "^15.0.12",
+    "puppeteer-core": "^23.11.1"
+  }
+}

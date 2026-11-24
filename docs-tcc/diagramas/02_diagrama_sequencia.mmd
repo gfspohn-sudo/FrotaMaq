@@ -1,0 +1,35 @@
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px", "fontFamily": "Inter, Arial, sans-serif"}}}%%
+sequenceDiagram
+  autonumber
+  actor Gestor
+  participant UI as Interface React
+  participant Auth as Supabase Auth
+  participant RLS as PostgreSQL RLS
+  participant DB as PostgreSQL
+  participant ESG as Motor ESG
+
+  Gestor->>UI: Acessa /login com e-mail e senha
+  UI->>Auth: signInWithPassword
+  Auth-->>UI: JWT autenticado
+  UI->>RLS: SELECT usuarios / veiculos WHERE empresa_id
+  RLS-->>UI: Linhas do tenant
+
+  Gestor->>UI: Cadastra manutencao preventiva
+  UI->>RLS: INSERT manutencoes empresa_id perfil gestor/mecanico
+  RLS->>DB: Persiste OS pecas JSONB valores
+  DB-->>UI: Manutencao criada
+  UI-->>Gestor: Toast de sucesso e auditoria veiculo_em_manutencao
+
+  Gestor->>UI: Aprova viagem pendente
+  UI->>ESG: calculateTripEmissions km combustivel
+  ESG-->>UI: kg CO2 litros arvores
+  UI->>UI: ReservaValidationService margem 500 km
+  alt Viagem estoura preventiva ou recusa
+    UI-->>Gestor: Bloqueia ou exige motivo_recusa
+    UI->>RLS: UPDATE reservas status REJEITADO
+  else Viagem segura
+    UI->>RLS: UPDATE reservas status APROVADO
+    RLS->>DB: Persiste aprovacao
+    DB-->>UI: Reserva atualizada
+    UI-->>Gestor: ESG da viagem e status APROVADO
+  end

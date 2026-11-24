@@ -1,0 +1,36 @@
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "15px", "fontFamily": "Inter, Arial, sans-serif"}}}%%
+flowchart TD
+  start([Inicio]) --> login[Fazer Login]
+  login --> solicitar[Motorista solicita reserva<br/>veiculo data destino km]
+  solicitar --> preventiva{Preventiva vencida<br/>ou margem 500 km estourada?}
+
+  preventiva -->|Sim| bloquear[Bloquear viagem<br/>orientar manutencao]
+  bloquear --> fim1([Fim - viagem nao segue])
+
+  preventiva -->|Nao| esg[Motor ESG calcula CO2<br/>litros e arvores]
+  esg --> marco{Atingiu marco ESG<br/>50 100 500 1000 2500 kg?}
+  marco -->|Sim| alertaESG[Disparar alerta ESG]
+  marco -->|Nao| ia
+  alertaESG --> ia
+
+  ia{Gestor consulta<br/>Co-Piloto IA?}
+  ia -->|Sim| copilot[Diagnostico somente leitura<br/>recusa mutacao se pedida]
+  ia -->|Nao| decisao
+  copilot --> decisao
+
+  decisao{Gestor aprova<br/>a viagem?}
+  decisao -->|Nao| motivo{Motivo da recusa<br/>informado?}
+  motivo -->|Nao| exigir[Exigir motivo_recusa]
+  exigir --> motivo
+  motivo -->|Sim| rejeitar[Status REJEITADO]
+  rejeitar --> fim2([Fim - recusa motivada])
+
+  decisao -->|Sim| aprovar[Status APROVADO]
+  aprovar --> fim3([Fim - viagem aprovada])
+
+  classDef decision fill:#fef3c7,stroke:#d97706,color:#0f172a
+  classDef action fill:#dbeafe,stroke:#2563eb,color:#0f172a
+  classDef endn fill:#d1fae5,stroke:#059669,color:#064e3b
+  class preventiva,marco,ia,decisao,motivo decision
+  class login,solicitar,esg,alertaESG,copilot,aprovar,rejeitar,bloquear,exigir action
+  class fim1,fim2,fim3 endn
