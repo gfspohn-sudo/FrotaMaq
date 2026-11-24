@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FrotaMaqLogo } from '@/components/FrotaMaqLogo'
-import { supabase, formatDetailedError } from '@/lib/supabase'
+import { supabase, formatDetailedError, getAuthRedirectUrl } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -10,6 +10,7 @@ import { validarChaveConvite } from '@/services/inviteKeys'
 
 type AuthMode = 'login' | 'signup'
 
+const REMEMBER_EMAIL_KEY = 'frotamaq_remember_email'
 const BACKGROUND_IMAGE =
   'https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=1920&q=80'
 
@@ -27,6 +28,16 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBER_EMAIL_KEY)
+      if (saved) {
+        setEmail(saved)
+        setRemember(true)
+      }
+    } catch {
+      /* ignore quota / private mode */
+    }
+
     supabase.auth.getSession().then(({ data, error: sessionError }) => {
       if (sessionError) {
         console.error('Erro no Supabase (teste login page):', sessionError)
@@ -62,6 +73,12 @@ export function LoginPage() {
       }
 
       console.log('[Supabase] Login OK:', { userId: data.user?.id, email: data.user?.email })
+      try {
+        if (remember) localStorage.setItem(REMEMBER_EMAIL_KEY, email.trim())
+        else localStorage.removeItem(REMEMBER_EMAIL_KEY)
+      } catch {
+        /* ignore quota / private mode */
+      }
       navigate('/')
     } catch (err) {
       console.error('Erro no Supabase:', err)
@@ -110,6 +127,30 @@ export function LoginPage() {
     }
 
     navigate('/')
+  }
+
+  async function handleForgotPassword() {
+    resetMessages()
+    if (!email.trim()) {
+      setError('Informe o e-mail cadastrado para enviar o link de recuperação.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: getAuthRedirectUrl('login'),
+      })
+      if (resetError) {
+        setError(formatDetailedError(resetError))
+        return
+      }
+      setSuccess('Se o e-mail estiver cadastrado, enviaremos um link para redefinir a senha.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível enviar o e-mail de recuperação.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -171,7 +212,12 @@ export function LoginPage() {
                   />
                   Lembrar-me
                 </label>
-                <button type="button" className="text-sm text-action hover:underline">
+                <button
+                  type="button"
+                  className="text-sm text-action hover:underline disabled:opacity-50"
+                  onClick={handleForgotPassword}
+                  disabled={loading}
+                >
                   Esqueci a senha?
                 </button>
               </div>

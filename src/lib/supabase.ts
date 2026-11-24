@@ -50,8 +50,16 @@ export function getAppOrigin(): string {
   return import.meta.env.DEV ? LOCAL_DEV_AUTH_ORIGINS[0] : ''
 }
 
+export function getAuthRedirectUrl(path = 'login'): string {
+  const origin = getAppOrigin() || LOCAL_DEV_AUTH_ORIGINS[0]
+  const rawBase = import.meta.env.BASE_URL || '/'
+  const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`
+  const normalizedPath = path.replace(/^\//, '')
+  return `${origin}${base}${normalizedPath}`
+}
+
 export function getOAuthRedirectUrl(): string {
-  return getAppOrigin() || LOCAL_DEV_AUTH_ORIGINS[0]
+  return getAuthRedirectUrl('login')
 }
 
 export function isKnownLocalDevOrigin(origin: string): boolean {

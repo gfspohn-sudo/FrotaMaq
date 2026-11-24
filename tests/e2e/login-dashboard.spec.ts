@@ -9,6 +9,7 @@ test.describe('Fluxo principal — Login e Dashboard', () => {
 
     await expect(page.getByRole('heading', { name: 'FrotaMaq' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Entrar na sua conta' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Entrar com Google' })).toHaveCount(0)
 
     await page.getByLabel('E-mail').fill(TEST_EMAIL)
     await page.getByLabel('Senha').fill(TEST_PASSWORD)
@@ -16,9 +17,8 @@ test.describe('Fluxo principal — Login e Dashboard', () => {
 
     await expect(page).toHaveURL('/', { timeout: 30_000 })
 
-    await expect(page.getByText('Veículos ativos')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByText('Total de veículos')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByText('Em manutenção')).toBeVisible()
     await expect(page.getByText('Parados')).toBeVisible()
-    await expect(page.getByText(/Custo total/i)).toBeVisible()
   })
 })

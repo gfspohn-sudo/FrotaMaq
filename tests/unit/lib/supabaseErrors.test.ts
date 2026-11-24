@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifySupabaseError, isFailedToFetchError, formatSupabaseError } from '@/lib/supabase'
+import { classifySupabaseError, isFailedToFetchError, formatSupabaseError, getAuthRedirectUrl } from '@/lib/supabase'
 import { SUPABASE_UNAVAILABLE_MESSAGE } from '@/lib/supabaseResilience'
 
 describe('classifySupabaseError', () => {
@@ -26,5 +26,13 @@ describe('classifySupabaseError', () => {
 describe('isFailedToFetchError', () => {
   it('reconhece TypeError de fetch', () => {
     expect(isFailedToFetchError(new TypeError('Failed to fetch'))).toBe(true)
+  })
+})
+
+describe('getAuthRedirectUrl', () => {
+  it('aponta para /login na origem atual, respeitando o BASE_URL', () => {
+    const url = getAuthRedirectUrl('login')
+    expect(url).toMatch(/\/login$/)
+    expect(url.startsWith('http')).toBe(true)
   })
 })

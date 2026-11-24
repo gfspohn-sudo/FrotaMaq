@@ -13,7 +13,8 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { useTenant } from '@/contexts/TenantContext'
 import type { Manutencao } from '@/types/database'
-import { History, Wrench } from 'lucide-react'
+import { History, Plus, Wrench } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 
 export function MaintenancePage() {
   const { profile } = useAuth()
@@ -39,6 +40,13 @@ export function MaintenancePage() {
       <Header title="Manutenções" />
 
       <div className="page-section">
+        {canCreateMaintenance && (
+          <Button className="w-full" onClick={() => setShowModal(true)}>
+            <Plus className="h-4 w-4" />
+            Nova manutenção
+          </Button>
+        )}
+
         <Link to="/historico">
           <Card interactive className="flex items-center gap-3 py-3">
             <History className="h-5 w-5 text-action" />
@@ -56,6 +64,14 @@ export function MaintenancePage() {
             icon={Wrench}
             title="Nenhuma manutenção registrada"
             description="Quando os serviços forem lançados, eles aparecerão aqui."
+            action={
+              canCreateMaintenance ? (
+                <Button onClick={() => setShowModal(true)}>
+                  <Plus className="h-4 w-4" />
+                  Registrar primeira OS
+                </Button>
+              ) : undefined
+            }
           />
         ) : (
           <div className="grid gap-3">
